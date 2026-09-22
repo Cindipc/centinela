@@ -31,24 +31,6 @@ centinela-app/    app móvil (Flutter)
 database/         schema.sql para Supabase
 ```
 
-## Instalación y configuración
-
-Clona el repositorio y entra a la carpeta del proyecto:
-
-```bash
-git clone https://github.com/Cindipc/centinela.git
-cd centinela
-```
-
-La estructura del proyecto es:
-
-```text
-centinela/
-├── frontend/       # Panel web (Vue 3 + TypeScript)
-├── backend/        # API y conexión con Supabase
-└── database/       # Scripts y esquema de Supabase
-```
-
 ### Frontend
 
 Entra a la carpeta del frontend e instala las dependencias:
