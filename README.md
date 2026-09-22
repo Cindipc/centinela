@@ -31,13 +31,75 @@ centinela-app/    app móvil (Flutter)
 database/         schema.sql para Supabase
 ```
 
-## Correrlo local
+### Frontend
 
-**Web**
+Entra a la carpeta del frontend e instala las dependencias:
+
 ```bash
-cd centinela-web
+cd frontend
+
 npm install
-cp .env.example .env
+```
+
+Dependencias principales utilizadas:
+
+```bash
+npm install vue-router@4 pinia
+npm install mapbox-gl @types/mapbox-gl
+npm install tailwindcss @tailwindcss/vite
+```
+
+Para iniciar el servidor de desarrollo:
+
+```bash
+npm run dev
+```
+
+### Backend
+
+Abre otra terminal y entra a la carpeta del backend:
+
+```bash
+cd backend
+```
+
+Instala las dependencias:
+
+```bash
+npm install
+```
+
+Si estás configurando el backend desde cero:
+
+```bash
+npm init -y
+npm install @supabase/supabase-js
+npm install -D typescript
+```
+
+Para iniciar el backend, utiliza el script definido en `package.json`.
+
+### Variables de entorno
+
+Crea los archivos `.env` correspondientes a cada parte del proyecto y configura las credenciales necesarias para Supabase, Mapbox y los demás servicios utilizados.
+
+No subas archivos `.env` al repositorio. Estos deben estar incluidos en `.gitignore`.
+
+## Desarrollo
+
+Para trabajar en el proyecto necesitas ejecutar el frontend y el backend por separado.
+
+**Frontend:**
+
+```bash
+cd frontend
+npm run dev
+```
+
+**Backend:**
+
+```bash
+cd backend
 npm run dev
 ```
 
