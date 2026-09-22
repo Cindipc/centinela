@@ -11,9 +11,7 @@ export default defineConfig({
       '@backend': path.resolve(__dirname, '../backend'),
     },
   },
-  // Lee el .env de la raíz del proyecto (compartido con backend/)
-  envDir: path.resolve(__dirname, '..'),
-  // Solo se exponen al navegador las variables VITE_*
-  // (SUPABASE_SECRET_KEY queda fuera del bundle)
+  // Lee el .env de la carpeta del frontend (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY).
+  // Solo se exponen al navegador las variables VITE_*.
   envPrefix: ['VITE_'],
 })

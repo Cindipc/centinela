@@ -6,6 +6,12 @@
 -- =========================================================
 
 -- ---------------------------------------------------------
+-- 0. Extensiones requeridas (idempotente: no falla si ya existen)
+-- ---------------------------------------------------------
+create extension if not exists postgis;
+create extension if not exists pgcrypto;
+
+-- ---------------------------------------------------------
 -- 1. Helper que rompe la recursión (SECURITY DEFINER).
 --    Devuelve el rol del usuario autenticado sin re-trigger de RLS.
 -- ---------------------------------------------------------
@@ -33,10 +39,12 @@ create policy "profiles_select_admin" on profiles
 
 -- Directorio público: cualquier usuario autenticado puede ver
 -- id/nombre/rol de los demás (se usa para joins de reporteros/asignados).
+drop policy if exists "profiles_select_authenticated" on profiles;
 create policy "profiles_select_authenticated" on profiles
   for select using (auth.role() = 'authenticated');
 
 -- Permite crear el propio perfil (respaldado por el trigger de signup).
+drop policy if exists "profiles_insert_own" on profiles;
 create policy "profiles_insert_own" on profiles
   for insert with check (auth.uid() = id);
 
@@ -69,6 +77,7 @@ create policy "incidents_insert_authenticated" on incidents
   for insert with check (auth.uid() = reported_by);
 
 -- Staff puede cambiar estado / reasignar / resolver
+drop policy if exists "incidents_update_staff" on incidents;
 create policy "incidents_update_staff" on incidents
   for update using (public.current_role() in ('admin', 'seguridad', 'ti'));
 
@@ -171,46 +180,101 @@ exception when others then null;
 end $$;
 
 -- ---------------------------------------------------------
+-- 9b. Columnas y claves foráneas que usa la web (defensivo:
+--     solo agrega lo que falte, no toca lo existente)
+-- ---------------------------------------------------------
+alter table public.incidents add column if not exists photo_url text;
+alter table public.incidents add column if not exists equipment_id uuid;
+alter table public.incidents add column if not exists assigned_to uuid;
+alter table public.incidents add column if not exists resolution_note text;
+alter table public.incidents add column if not exists resolved_at timestamptz;
+alter table public.incidents add column if not exists updated_at timestamptz default now();
+
+alter table public.equipment add column if not exists assigned_to uuid;
+alter table public.equipment add column if not exists created_at timestamptz default now();
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'incidents_reported_by_fkey' and conrelid = 'public.incidents'::regclass) then
+    alter table public.incidents add constraint incidents_reported_by_fkey
+      foreign key (reported_by) references public.profiles(id);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'incidents_assigned_to_fkey' and conrelid = 'public.incidents'::regclass) then
+    alter table public.incidents add constraint incidents_assigned_to_fkey
+      foreign key (assigned_to) references public.profiles(id);
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'equipment_assigned_to_fkey' and conrelid = 'public.equipment'::regclass) then
+    alter table public.equipment add constraint equipment_assigned_to_fkey
+      foreign key (assigned_to) references public.profiles(id);
+  end if;
+end $$;
+
+-- ---------------------------------------------------------
 -- 10. Seed — zonas del campus (solo si la tabla está vacía)
 -- ---------------------------------------------------------
-insert into public.zones (id, name, building, location)
-select v.id, v.name, v.building, st_setsrid(st_makepoint(v.lng, v.lat), 4326)::geography
-from (values
-  ('00000000-0000-4000-a000-000000000001', 'Acceso Norte', 'Garita 1', -12.112, -77.028),
-  ('00000000-0000-4000-a000-000000000002', 'Laboratorio B', 'Edificio B',   -12.115, -77.032),
-  ('00000000-0000-4000-a000-000000000003', 'Estacionamiento P1', 'Nivel 1', -12.110, -77.030),
-  ('00000000-0000-4000-a000-000000000004', 'Perímetro Oeste', 'Cerca perimetral', -12.118, -77.026),
-  ('00000000-0000-4000-a000-000000000005', 'Biblioteca', 'Edificio C',  -12.114, -77.029)
-) as v(id, name, building, lat, lng)
-where (select count(*) from public.zones) = 0;
+do $$
+begin
+  if (select count(*) from public.zones) = 0 then
+    insert into public.zones (id, name, building, location) values
+      ('00000000-0000-4000-a000-000000000001', 'Acceso Norte', 'Garita 1',          st_setsrid(st_makepoint(-12.112, -77.028), 4326)::geography),
+      ('00000000-0000-4000-a000-000000000002', 'Laboratorio B', 'Edificio B',       st_setsrid(st_makepoint(-12.115, -77.032), 4326)::geography),
+      ('00000000-0000-4000-a000-000000000003', 'Estacionamiento P1', 'Nivel 1',     st_setsrid(st_makepoint(-12.110, -77.030), 4326)::geography),
+      ('00000000-0000-4000-a000-000000000004', 'Perímetro Oeste', 'Cerca perimetral', st_setsrid(st_makepoint(-12.118, -77.026), 4326)::geography),
+      ('00000000-0000-4000-a000-000000000005', 'Biblioteca', 'Edificio C',          st_setsrid(st_makepoint(-12.114, -77.029), 4326)::geography);
+  end if;
+end $$;
 
 -- ---------------------------------------------------------
 -- 11. Seed — equipos de ejemplo (solo si la tabla está vacía)
 -- ---------------------------------------------------------
-insert into public.equipment (id, name, category, serial_number, zone_id, status)
-select v.id, v.name, v.category, v.serial_number, v.zone_id, v.status
-from (values
-  ('00000000-0000-4000-b000-000000000001', 'Laptop Dell Latitude 5540', 'computo', 'DL-5540-001', '00000000-0000-4000-a000-000000000002', 'operativo'),
-  ('00000000-0000-4000-b000-000000000002', 'Switch red Edif. A', 'red', 'SW-A1-088', '00000000-0000-4000-a000-000000000001', 'operativo'),
-  ('00000000-0000-4000-b000-000000000003', 'Proyector Epson Sala C', 'av', 'EP-C3-211', '00000000-0000-4000-a000-000000000005', 'con_falla'),
-  ('00000000-0000-4000-b000-000000000004', 'Cámara CCTV garita 3', 'cctv', 'CAM-G3-015', '00000000-0000-4000-a000-000000000001', 'caido'),
-  ('00000000-0000-4000-b000-000000000005', 'UPS Laboratorio B', 'energia', 'UPS-B2-077', '00000000-0000-4000-a000-000000000002', 'en_reparacion')
-) as v(id, name, category, serial_number, zone_id, status)
-where (select count(*) from public.equipment) = 0;
+do $$
+begin
+  if (select count(*) from public.equipment) = 0 then
+    insert into public.equipment (id, name, category, serial_number, zone_id, status) values
+      ('00000000-0000-4000-b000-000000000001', 'Laptop Dell Latitude 5540', 'computo', 'DL-5540-001', '00000000-0000-4000-a000-000000000002', 'operativo'),
+      ('00000000-0000-4000-b000-000000000002', 'Switch red Edif. A', 'red', 'SW-A1-088', '00000000-0000-4000-a000-000000000001', 'operativo'),
+      ('00000000-0000-4000-b000-000000000003', 'Proyector Epson Sala C', 'av', 'EP-C3-211', '00000000-0000-4000-a000-000000000005', 'con_falla'),
+      ('00000000-0000-4000-b000-000000000004', 'Cámara CCTV garita 3', 'cctv', 'CAM-G3-015', '00000000-0000-4000-a000-000000000001', 'caido'),
+      ('00000000-0000-4000-b000-000000000005', 'UPS Laboratorio B', 'energia', 'UPS-B2-077', '00000000-0000-4000-a000-000000000002', 'en_reparacion');
+  end if;
+end $$;
 
 -- ---------------------------------------------------------
 -- 12. Seed — incidencias de ejemplo (solo si la tabla está vacía)
 -- ---------------------------------------------------------
-insert into public.incidents (id, code, type, category, title, description, zone_id, priority, status, created_at, updated_at)
-select v.id, v.code, v.type, v.category, v.title, v.description, v.zone_id, v.priority, v.status, now() - (v.hours_ago || ' hours')::interval, now() - (v.hours_ago || ' hours')::interval
-from (values
-  ('00000000-0000-4000-c000-000000000001', 'SEC-0001', 'seguridad', 'persona sospechosa', 'Intento de ingreso sin credencial', 'Persona intentó cruzar la garita 3 sin acreditación.', '00000000-0000-4000-a000-000000000001', 'high', 'en_proceso', 6),
-  ('00000000-0000-4000-c000-000000000002', 'TIC-0001', 'equipo', 'laptop danada', 'Laptop con pantalla rota', 'Reporte de laptop Dell con daño de pantalla en Laboratorio B.', '00000000-0000-4000-a000-000000000002', 'medium', 'pendiente', 2),
-  ('00000000-0000-4000-c000-000000000003', 'SEC-0002', 'seguridad', 'vidrio roto', 'Vidrio roto en estacionamiento P1', 'Vehículo con vidrio trasero roto en nivel 1.', '00000000-0000-4000-a000-000000000003', 'critical', 'pendiente', 1)
-) as v(id, code, type, category, title, description, zone_id, priority, status, hours_ago)
-where (select count(*) from public.incidents) = 0;
+-- Usuario "Sistema" (perfil creado automáticamente por el trigger
+-- on_auth_created). Las incidencias de ejemplo lo usan como
+-- reportero/asignado para cumplir las FK.
+-- Credenciales: sistema@centinela.local / Sistema*2026
+insert into auth.users (id, instance_id, aud, role, email, encrypted_password, email_confirmed_at, raw_app_meta_data, raw_user_meta_data, created_at, updated_at, confirmation_token, recovery_token, email_change_token_new)
+select
+  '00000000-0000-4000-e000-000000000001',
+  '00000000-0000-0000-0000-000000000000',
+  'authenticated', 'authenticated',
+  'sistema@centinela.local',
+  crypt('Sistema*2026', gen_salt('bf')),
+  now(),
+  '{"provider":"email","providers":["email"]}',
+  '{"full_name":"Sistema"}',
+  now(), now(), '', '', ''
+where not exists (select 1 from auth.users where email = 'sistema@centinela.local');
 
--- ---------------------------------------------------------
+do $$
+begin
+  if (select count(*) from public.incidents) = 0 then
+    insert into public.incidents (id, code, type, category, title, description, zone_id, priority, status, reported_by, assigned_to, created_at) values
+      ('00000000-0000-4000-c000-000000000001', 'SEC-0001', 'seguridad', 'persona sospechosa', 'Intento de ingreso sin credencial', 'Persona intentó cruzar la garita 3 sin acreditación.', '00000000-0000-4000-a000-000000000001', 'high', 'en_proceso', '00000000-0000-4000-e000-000000000001', '00000000-0000-4000-e000-000000000001', now() - interval '6 hours'),
+      ('00000000-0000-4000-c000-000000000002', 'TIC-0001', 'equipo', 'laptop danada', 'Laptop con pantalla rota', 'Reporte de laptop Dell con daño de pantalla en Laboratorio B.', '00000000-0000-4000-a000-000000000002', 'medium', 'pendiente', '00000000-0000-4000-e000-000000000001', '00000000-0000-4000-e000-000000000001', now() - interval '2 hours'),
+      ('00000000-0000-4000-c000-000000000003', 'SEC-0002', 'seguridad', 'vidrio roto', 'Vidrio roto en estacionamiento P1', 'Vehículo con vidrio trasero roto en nivel 1.', '00000000-0000-4000-a000-000000000003', 'critical', 'pendiente', '00000000-0000-4000-e000-000000000001', '00000000-0000-4000-e000-000000000001', now() - interval '1 hours');
+  end if;
+end $$;
+
+
+   -- ---------------------------------------------------------
 -- 13. (OPCIONAL) Usuario admin de prueba.
 --     Descomenta si quieres poder iniciar sesión de inmediato.
 --     Credenciales: admin@centinela.local / Admin*2026
@@ -233,10 +297,33 @@ where (select count(*) from public.incidents) = 0;
 -- from auth.users where email = 'admin@centinela.local'
 -- on conflict (id) do update set role = 'admin';
 --
--- -- Notificación de ejemplo para ese admin (solo si existe su perfil)
 -- insert into public.notifications (user_id, title, message, related_incident_id, is_read)
 -- select '00000000-0000-4000-b000-000000000009', 'Incidencia crítica nueva',
 --        'Vidrio roto en estacionamiento P1.',
 --        '00000000-0000-4000-c000-000000000003', false
 -- where exists (select 1 from public.profiles where id = '00000000-0000-4000-b000-000000000009')
 --   and not exists (select 1 from public.notifications where related_incident_id = '00000000-0000-4000-c000-000000000003');
+
+-- ---------------------------------------------------------
+-- 14. Arreglar el 500 "Database error querying schema" en login.
+--     Causa: insertar usuarios directamente en auth.users deja
+--     columnas en NULL donde GoTrue espera un string vacío.
+--     (Error documentado oficial). Idempotente.
+-- ---------------------------------------------------------
+update auth.users
+set confirmation_token         = coalesce(confirmation_token, ''),
+    recovery_token             = coalesce(recovery_token, ''),
+    email_change               = coalesce(email_change, ''),
+    email_change_token_new     = coalesce(email_change_token_new, ''),
+    email_change_token_current = coalesce(email_change_token_current, ''),
+    phone_change_token         = coalesce(phone_change_token, ''),
+    phone_change               = coalesce(phone_change, ''),
+    reauthentication_token     = coalesce(reauthentication_token, '')
+where confirmation_token is null
+   or recovery_token is null
+   or email_change is null
+   or email_change_token_new is null
+   or email_change_token_current is null
+   or phone_change_token is null
+   or phone_change is null
+   or reauthentication_token is null;
