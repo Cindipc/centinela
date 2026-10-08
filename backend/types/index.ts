@@ -21,6 +21,11 @@ export type IncidentType = 'seguridad' | 'equipo'
 export type IncidentPriority = 'low' | 'medium' | 'high' | 'critical'
 export type IncidentStatus = 'pendiente' | 'en_proceso' | 'resuelto' | 'falsa_alarma'
 
+export interface GeoPoint {
+  lat: number
+  lng: number
+}
+
 export interface Incident {
   id: string
   code: string
@@ -31,6 +36,7 @@ export interface Incident {
   photoUrl: string | null
   zoneId: string | null
   zone: string | null
+  location: GeoPoint | null
   equipmentId: string | null
   priority: IncidentPriority
   status: IncidentStatus
@@ -51,6 +57,8 @@ export interface IncidentInput {
   description?: string
   zone?: string
   equipmentId?: string
+  photoUrl?: string
+  location?: GeoPoint | null
   priority: IncidentPriority
   status?: IncidentStatus
   assignedTo?: string
@@ -92,12 +100,60 @@ export interface Notification {
   createdAt: string
 }
 
-// ---- Zonas ----
+// ---- Zonas y departamentos ----
 export interface Zone {
   id: string
   name: string
   building: string | null
   departmentId: string | null
+  location: GeoPoint | null
+}
+
+export interface Department {
+  id: string
+  name: string
+  responsibleId: string | null
+}
+
+// ---- Contactos de confianza y botón de pánico ----
+export interface EmergencyContact {
+  id: string
+  userId: string
+  name: string
+  phone: string
+  relation: string | null
+  createdAt: string
+}
+
+export interface EmergencyContactInput {
+  name: string
+  phone: string
+  relation?: string
+}
+
+export type PanicStatus = 'activo' | 'atendido' | 'falsa_alarma'
+
+export interface PanicAlert {
+  id: string
+  userId: string
+  userName: string | null
+  status: PanicStatus
+  zone: string | null
+  latitude: number | null
+  longitude: number | null
+  createdAt: string
+  resolvedAt: string | null
+}
+
+// ---- Alta de usuarios (solo admin, vía Edge Function) ----
+export interface NewUserInput {
+  fullName: string
+  email: string
+  password: string
+  role: Role
+  departmentId?: string | null
+  zoneId?: string | null
+  phone?: string | null
 }
 
 // ---- Filas crudas de la BD (para mapear en las APIs) ----
@@ -119,7 +175,8 @@ export interface DbIncidentRow {
   created_at: string
   updated_at: string
   resolved_at: string | null
-  zones?: { name: string | null } | null
+  location?: unknown
+  zones?: { name: string | null; location?: unknown } | null
   reporter?: { full_name: string | null } | null
   assignee?: { full_name: string | null } | null
 }
@@ -161,4 +218,32 @@ export interface DbZoneRow {
   name: string
   building: string | null
   department_id: string | null
+  location?: unknown
+}
+
+export interface DbDepartmentRow {
+  id: string
+  name: string
+  responsible_id: string | null
+}
+
+export interface DbEmergencyContactRow {
+  id: string
+  user_id: string | null
+  name: string
+  phone: string
+  relation: string | null
+  created_at: string
+}
+
+export interface DbPanicAlertRow {
+  id: string
+  user_id: string | null
+  status: PanicStatus
+  zone_id: string | null
+  location?: unknown
+  created_at: string
+  resolved_at: string | null
+  zones?: { name: string | null } | null
+  reporter?: { full_name: string | null } | null
 }

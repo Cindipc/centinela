@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
+import { homePathFor } from '@/navigation/roleNav'
 
-const { signIn, loading } = useAuth()
+const { signIn, user, loading } = useAuth()
 const router = useRouter()
+const route = useRoute()
 
 const email = ref('')
 const password = ref('')
@@ -14,7 +16,11 @@ async function submit() {
   submitError.value = null
   try {
     await signIn(email.value, password.value)
-    router.push({ name: 'dashboard' })
+    // El guard ya manda a /login si la sesión es inválida; aquí respetamos
+    // el destino por rol (admin → /dashboard, seguridad → /seguridad/cola...).
+    const redirect = route.query.redirect
+    const target = typeof redirect === 'string' && redirect.startsWith('/') ? redirect : homePathFor(user.value?.role)
+    router.push(target)
   } catch (e) {
     submitError.value = e instanceof Error ? e.message : 'Error de autenticación'
   }
@@ -47,8 +53,8 @@ async function submit() {
       </button>
 
       <div class="login__demo text-muted">
-        <p>Sesión autenticada contra Supabase Auth.</p>
-        <p>Crea el usuario en el panel de Supabase (el perfil se genera automáticamente).</p>
+        <p>El registro es cerrado: solo un administrador puede crear cuentas.</p>
+        <p>Cada rol entra a su propia vista (admin, seguridad, TI o usuario).</p>
       </div>
     </form>
   </div>

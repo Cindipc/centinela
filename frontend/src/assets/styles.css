@@ -64,6 +64,10 @@ textarea {
   padding: 24px;
 }
 
+.app-content--full {
+  padding: 0;
+}
+
 /* Componentes reutilizables */
 .card {
   background: var(--bg-card);
@@ -149,4 +153,21 @@ textarea {
 .page-header__actions {
   display: flex;
   gap: 10px;
+}
+
+/* Layout responsive: en móvil la barra inferior sustituye al sidebar */
+@media (max-width: 768px) {
+  .app-content {
+    padding: 16px;
+    padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .page-header h1 {
+    font-size: 21px;
+  }
 }

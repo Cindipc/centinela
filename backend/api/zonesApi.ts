@@ -1,17 +1,19 @@
 import { getSupabase } from '../supabase/client'
-import type { Zone, Profile, DbZoneRow, DbProfileRow } from '../types'
-
-const PROFILE_SELECT = 'id, full_name, role, department_id, zone_id, phone'
-
-function mapZone(row: DbZoneRow): Zone {
-  return { id: row.id, name: row.name, building: row.building, departmentId: row.department_id }
-}
+import { PROFILE_SELECT, ZONE_SELECT, mapDepartment, mapProfile, mapZone } from './mappers'
+import type { Zone, Profile, Department, DbZoneRow, DbDepartmentRow, DbProfileRow } from '../types'
 
 export async function getZones(): Promise<Zone[]> {
   const supabase = getSupabase()
-  const { data, error } = await supabase.from('zones').select('id, name, building, department_id').order('name')
+  const { data, error } = await supabase.from('zones').select(ZONE_SELECT).order('name')
   if (error) throw error
   return (data ?? []).map((r) => mapZone(r as DbZoneRow))
+}
+
+export async function getDepartments(): Promise<Department[]> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase.from('departments').select('id, name, responsible_id').order('name')
+  if (error) throw error
+  return (data ?? []).map((r) => mapDepartment(r as DbDepartmentRow))
 }
 
 export async function getStaff(): Promise<Profile[]> {
@@ -22,18 +24,7 @@ export async function getStaff(): Promise<Profile[]> {
     .in('role', ['admin', 'seguridad', 'ti'])
     .order('full_name')
   if (error) throw error
-  return (data ?? []).map((r) => {
-    const row = r as DbProfileRow
-    return {
-      id: row.id,
-      email: '',
-      name: row.full_name,
-      role: row.role,
-      departmentId: row.department_id ?? null,
-      zoneId: row.zone_id ?? null,
-      phone: row.phone ?? null,
-    }
-  })
+  return (data ?? []).map((r) => mapProfile(r as DbProfileRow))
 }
 
 export async function findZoneIdByName(zoneName?: string | null): Promise<string | null> {

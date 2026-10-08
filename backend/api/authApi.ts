@@ -1,26 +1,13 @@
 import { getSupabase } from '../supabase/client'
+import { PROFILE_SELECT, mapProfile } from './mappers'
 import type { Profile, DbProfileRow } from '../types'
-
-const PROFILE_SELECT = 'id, full_name, role, department_id, zone_id, phone'
-
-function mapProfile(email: string, row: DbProfileRow): Profile {
-  return {
-    id: row.id,
-    email,
-    name: row.full_name,
-    role: row.role,
-    departmentId: row.department_id ?? null,
-    zoneId: row.zone_id ?? null,
-    phone: row.phone ?? null,
-  }
-}
 
 async function profileFor(uid: string, email: string): Promise<Profile> {
   const supabase = getSupabase()
   const { data, error } = await supabase.from('profiles').select(PROFILE_SELECT).eq('id', uid).maybeSingle()
   if (error) throw error
   if (!data) throw new Error('Perfil no encontrado en la base de datos.')
-  return mapProfile(email, data as DbProfileRow)
+  return mapProfile(data as DbProfileRow, email)
 }
 
 export async function login(email: string, password: string): Promise<Profile> {

@@ -1,26 +1,17 @@
 <script setup lang="ts">
-import { useRoute } from 'vue-router'
-import { useNotificationsStore } from '@/stores/notifications'
 import { computed } from 'vue'
+import { useRoute } from 'vue-router'
+import { useAuth } from '@/composables/useAuth'
+import { useNotificationsStore } from '@/stores/notifications'
+import { isActivePath, navItemsFor, ROLE_LABELS } from '@/navigation/roleNav'
 
 const route = useRoute()
 const notificationsStore = useNotificationsStore()
+const { user } = useAuth()
 
-const navItems = [
-  { to: '/', label: 'Panel', icon: '📊' },
-  { to: '/incidents', label: 'Incidencias', icon: '⚠️' },
-  { to: '/new-report', label: 'Nuevo reporte', icon: '➕' },
-  { to: '/emergency', label: 'Emergencia', icon: '🚨' },
-  { to: '/inventory', label: 'Inventario', icon: '📷' },
-  { to: '/notifications', label: 'Notificaciones', icon: '🔔' },
-  { to: '/settings', label: 'Configuración', icon: '⚙️' },
-]
-
+// Solo se listan los enlaces del rol: nunca aparece uno inaccesible.
+const navItems = computed(() => navItemsFor(user.value?.role))
 const unread = computed(() => notificationsStore.unreadCount)
-
-function isActive(to: string) {
-  return route.path === to
-}
 </script>
 
 <template>
@@ -36,7 +27,7 @@ function isActive(to: string) {
         :key="item.to"
         :to="item.to"
         class="sidebar__link"
-        :class="{ 'sidebar__link--active': isActive(item.to) }"
+        :class="{ 'sidebar__link--active': isActivePath(route.path, item.to) }"
       >
         <span class="sidebar__icon">{{ item.icon }}</span>
         <span>{{ item.label }}</span>
@@ -47,6 +38,7 @@ function isActive(to: string) {
     </nav>
 
     <div class="sidebar__footer">
+      <div v-if="user" class="sidebar__role">{{ ROLE_LABELS[user.role] }}</div>
       <div class="sidebar__status">
         <span class="sidebar__pulse"></span>
         Sistema en línea
@@ -132,6 +124,15 @@ function isActive(to: string) {
 .sidebar__footer {
   border-top: 1px solid var(--border);
   padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidebar__role {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
 }
 
 .sidebar__status {
@@ -148,5 +149,11 @@ function isActive(to: string) {
   border-radius: 50%;
   background: var(--success);
   box-shadow: 0 0 0 4px rgba(46, 213, 115, 0.2);
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    display: none;
+  }
 }
 </style>

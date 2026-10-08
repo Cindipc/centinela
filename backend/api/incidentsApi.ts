@@ -1,9 +1,10 @@
 import { getSupabase } from '../supabase/client'
 import { findZoneIdByName } from './zonesApi'
 import { INCIDENT_SELECT, mapIncident } from './mappers'
-import type { Incident, IncidentInput } from '../types'
+import type { Incident, IncidentInput, GeoPoint } from '../types'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const PHOTO_BUCKET = 'incidents'
 
 async function resolveProfileId(nameOrId?: string | null): Promise<string | null> {
   if (!nameOrId) return null
@@ -19,11 +20,28 @@ async function nextCode(type: IncidentInput['type']): Promise<string> {
   return type === 'equipo' ? `TIC-${seq}` : `SEC-${seq}`
 }
 
+/** PostgREST espera las columnas PostGIS como GeoJSON. */
+function toGeoJson(point: GeoPoint) {
+  return { type: 'Point', coordinates: [point.lng, point.lat] }
+}
+
 export async function getIncidents(): Promise<Incident[]> {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('incidents')
     .select(INCIDENT_SELECT)
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return (data ?? []).map((r) => mapIncident(r as never))
+}
+
+/** Incidencias de un solo tipo (capa de la cola de seguridad o de TI). */
+export async function getIncidentsByType(type: IncidentInput['type']): Promise<Incident[]> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('incidents')
+    .select(INCIDENT_SELECT)
+    .eq('type', type)
     .order('created_at', { ascending: false })
   if (error) throw error
   return (data ?? []).map((r) => mapIncident(r as never))
@@ -53,6 +71,8 @@ export async function createIncident(
         category: input.category ?? null,
         title: input.title,
         description: input.description ?? null,
+        photo_url: input.photoUrl ?? null,
+        location: input.location ? toGeoJson(input.location) : null,
         zone_id: zoneId,
         equipment_id: input.equipmentId ?? null,
         priority: input.priority,
@@ -66,6 +86,25 @@ export async function createIncident(
     if (attempt === 4 || !/duplicate key|code_key/i.test(error.message)) throw error
   }
   throw new Error('No se pudo asignar un código único a la incidencia.')
+}
+
+/** Sube una foto al bucket de Storage y devuelve su URL pública. */
+export async function uploadIncidentPhoto(file: File): Promise<string> {
+  const supabase = getSupabase()
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
+  const path = `${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${ext}`
+  const { error } = await supabase.storage.from(PHOTO_BUCKET).upload(path, file, {
+    cacheControl: '3600',
+    upsert: false,
+    contentType: file.type,
+  })
+  if (error) {
+    throw new Error(
+      `No se pudo subir la foto (${error.message}). Verifica que el bucket "${PHOTO_BUCKET}" exista en Supabase Storage.`
+    )
+  }
+  const { data } = supabase.storage.from(PHOTO_BUCKET).getPublicUrl(path)
+  return data.publicUrl
 }
 
 export async function updateIncident(id: string, patch: Partial<Incident>): Promise<Incident> {

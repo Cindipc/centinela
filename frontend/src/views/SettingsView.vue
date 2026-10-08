@@ -86,6 +86,16 @@ function save() {
       </div>
     </section>
 
+    <section class="card settings__section">
+      <h2>Administración</h2>
+      <p class="text-muted settings__role">
+        El registro es cerrado: las cuentas nuevas las crea un administrador y se les asigna el rol al momento del alta.
+      </p>
+      <router-link class="btn settings__link" to="/configuracion/usuarios">
+        Gestionar usuarios
+      </router-link>
+    </section>
+
     <div class="settings__actions">
       <button class="btn" @click="save">Guardar cambios</button>
       <span v-if="saved" class="settings__saved">✓ Guardado</span>
@@ -184,6 +194,11 @@ function save() {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.settings__link {
+  align-self: flex-start;
+  text-decoration: none;
 }
 
 .settings__saved {

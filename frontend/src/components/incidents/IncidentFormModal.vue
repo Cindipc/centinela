@@ -44,6 +44,7 @@ watch(
 )
 
 function submit() {
+  if (!form.title.trim() || !form.description?.trim()) return
   const { id, ...data } = form
   emit('save', { ...data }, id)
 }
@@ -53,7 +54,7 @@ function submit() {
   <Teleport to="body">
     <Transition name="modal">
       <div v-if="show" class="modal-backdrop" @click.self="emit('close')">
-        <form class="card modal" @submit.prevent="submit">
+        <form class="card modal" @submit.prevent="submit" novalidate>
           <header class="modal__head">
             <h2>{{ incident ? 'Editar incidencia' : 'Nueva incidencia' }}</h2>
             <button type="button" class="modal__close" @click="emit('close')">✕</button>
