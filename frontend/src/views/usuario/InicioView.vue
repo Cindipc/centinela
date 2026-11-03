@@ -47,7 +47,7 @@ const greeting = computed(() => {
         </p>
       </div>
       <div class="page-header__actions">
-        <button class="btn inicio__cta" @click="router.push({ path: '/reportar' })">➕ Reportar</button>
+        <button class="btn inicio__cta" @click="router.push({ path: '/reportar' })">Reportar</button>
       </div>
     </header>
 
@@ -108,8 +108,8 @@ const greeting = computed(() => {
 .inicio__panic {
   padding: 14px 16px;
   font-size: 14px;
-  border-color: rgba(255, 71, 87, 0.45);
-  background: rgba(255, 71, 87, 0.08);
+  border-color: rgba(255, 122, 136, 0.45);
+  background: rgba(255, 122, 136, 0.08);
 }
 
 .inicio__block h2 {

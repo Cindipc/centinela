@@ -91,16 +91,18 @@ const emit = defineEmits<{
 }
 
 .queue__select {
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
   color: var(--text);
   padding: 9px 12px;
   outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .queue__select:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(47, 224, 234, 0.16);
 }
 
 .queue__toggle {
@@ -131,10 +133,12 @@ const emit = defineEmits<{
   background: var(--bg-card);
   border: 1px solid var(--border);
   color: var(--text);
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .queue__item:hover {
   border-color: var(--accent);
+  box-shadow: 0 0 18px rgba(47, 224, 234, 0.18);
 }
 
 .queue__item-head {

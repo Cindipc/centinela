@@ -36,7 +36,7 @@ const typeLabels: Record<string, string> = { seguridad: 'Seguridad', equipo: 'Eq
         <p class="text-muted">{{ open }} abiertos · {{ closed.length }} cerrados</p>
       </div>
       <div class="page-header__actions">
-        <button class="btn" @click="router.push({ path: '/reportar' })">➕ Nuevo reporte</button>
+        <button class="btn" @click="router.push({ path: '/reportar' })">Nuevo reporte</button>
       </div>
     </header>
 
@@ -142,9 +142,9 @@ const typeLabels: Record<string, string> = { seguridad: 'Seguridad', equipo: 'Eq
 .report-item__resolution {
   margin: 0;
   padding: 10px 12px;
-  border-radius: 8px;
-  background: rgba(46, 213, 115, 0.1);
-  border: 1px solid rgba(46, 213, 115, 0.3);
+  border-radius: 10px;
+  background: var(--success-soft);
+  border: 1px solid rgba(85, 224, 176, 0.35);
   font-size: 13px;
 }
 

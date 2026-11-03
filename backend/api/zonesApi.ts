@@ -1,6 +1,6 @@
 import { getSupabase } from '../supabase/client'
 import { PROFILE_SELECT, ZONE_SELECT, mapDepartment, mapProfile, mapZone } from './mappers'
-import type { Zone, Profile, Department, DbZoneRow, DbDepartmentRow, DbProfileRow } from '../types'
+import type { Zone, Profile, Department, GeoPoint, DbZoneRow, DbDepartmentRow, DbProfileRow } from '../types'
 
 export async function getZones(): Promise<Zone[]> {
   const supabase = getSupabase()
@@ -32,4 +32,17 @@ export async function findZoneIdByName(zoneName?: string | null): Promise<string
   const supabase = getSupabase()
   const { data } = await supabase.from('zones').select('id').eq('name', zoneName).maybeSingle()
   return data?.id ?? null
+}
+
+/**
+ * Mueve el punto de una zona (solo admin vía RLS `zones_admin_all`).
+ * PostGIS recibe el point como GeoJSON, igual que al crear incidencias.
+ */
+export async function updateZoneLocation(id: string, point: GeoPoint): Promise<void> {
+  const supabase = getSupabase()
+  const { error } = await supabase
+    .from('zones')
+    .update({ location: { type: 'Point', coordinates: [point.lng, point.lat] } })
+    .eq('id', id)
+  if (error) throw error
 }

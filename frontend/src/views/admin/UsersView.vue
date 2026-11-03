@@ -221,23 +221,30 @@ const zoneOf = (zoneId: string | null | undefined) => zones.value.find((z) => z.
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 13px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
 
 .field input,
 .field select {
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
   color: var(--text);
   padding: 10px 12px;
   outline: none;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .field input:focus,
 .field select:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(47, 224, 234, 0.16), 0 0 18px rgba(47, 224, 234, 0.22);
 }
 
 .users__hint,
@@ -258,9 +265,9 @@ const zoneOf = (zoneId: string | null | undefined) => zones.value.find((z) => z.
 .users__ok {
   margin: 0;
   padding: 12px 14px;
-  border-radius: 8px;
-  background: rgba(46, 213, 115, 0.12);
-  border: 1px solid rgba(46, 213, 115, 0.4);
+  border-radius: 10px;
+  background: var(--success-soft);
+  border: 1px solid rgba(85, 224, 176, 0.4);
   color: var(--success);
   font-size: 14px;
 }
@@ -268,9 +275,9 @@ const zoneOf = (zoneId: string | null | undefined) => zones.value.find((z) => z.
 .users__error {
   margin: 0;
   padding: 12px 14px;
-  border-radius: 8px;
-  background: rgba(255, 71, 87, 0.12);
-  border: 1px solid rgba(255, 71, 87, 0.4);
+  border-radius: 10px;
+  background: var(--danger-soft);
+  border: 1px solid rgba(255, 122, 136, 0.4);
   color: var(--danger);
   font-size: 14px;
 }
@@ -300,10 +307,10 @@ const zoneOf = (zoneId: string | null | undefined) => zones.value.find((z) => z.
   letter-spacing: 0.4px;
 }
 
-.users__role.role--admin { background: rgba(47, 125, 255, 0.18); color: #6aa3ff; }
-.users__role.role--seguridad { background: rgba(255, 71, 87, 0.18); color: #ff6b77; }
-.users__role.role--ti { background: rgba(255, 165, 2, 0.16); color: #ffbe52; }
-.users__role.role--usuario { background: rgba(139, 150, 173, 0.2); color: var(--text-muted); }
+.users__role.role--admin { background: var(--primary-soft); color: var(--primary); }
+.users__role.role--seguridad { background: var(--danger-soft); color: var(--danger); }
+.users__role.role--ti { background: var(--secondary-soft); color: var(--secondary); }
+.users__role.role--usuario { background: rgba(141, 176, 184, 0.14); color: var(--text-muted); }
 
 .users__empty {
   text-align: center;

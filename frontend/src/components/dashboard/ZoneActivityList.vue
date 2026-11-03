@@ -71,14 +71,16 @@ defineProps<{
 
 .zone-list__count {
   font-size: 12px;
-  background: var(--bg-raised);
+  background: var(--input-bg);
+  border: 1px solid var(--border);
   padding: 2px 8px;
   border-radius: 999px;
   color: var(--text-muted);
 }
 
 .zone-list__count--alert {
-  background: rgba(255, 71, 87, 0.15);
+  background: var(--danger-soft);
+  border-color: rgba(255, 122, 136, 0.4);
   color: var(--danger);
 }
 

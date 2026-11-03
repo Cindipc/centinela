@@ -9,7 +9,6 @@ import type { Role } from '@backend/types'
 export interface NavItem {
   to: string
   label: string
-  icon: string
   /** Se marca visualmente como acción principal (CTA). */
   primary?: boolean
   /** Si es false, el enlace solo aparece en escritorio (la barra móvil es corta). */
@@ -33,25 +32,30 @@ export const ROLE_LABELS: Record<Role, string> = {
 
 const NAV: Record<Role, NavItem[]> = {
   admin: [
-    { to: '/dashboard', label: 'Panel', icon: '📊' },
-    { to: '/incidents', label: 'Incidencias', icon: '⚠️' },
-    { to: '/new-report', label: 'Nuevo reporte', icon: '➕', primary: true },
-    { to: '/emergency', label: 'Emergencia', icon: '🚨', mobile: false },
-    { to: '/inventory', label: 'Inventario', icon: '📷', mobile: false },
-    { to: '/notifications', label: 'Notificaciones', icon: '🔔' },
-    { to: '/settings', label: 'Configuración', icon: '⚙️' },
-    { to: '/configuracion/usuarios', label: 'Usuarios', icon: '🧑', mobile: false },
+    { to: '/dashboard', label: 'Panel' },
+    { to: '/mapa', label: 'Mapa', mobile: false },
+    { to: '/incidents', label: 'Incidencias' },
+    { to: '/new-report', label: 'Nuevo reporte', primary: true },
+    { to: '/emergency', label: 'Emergencia', mobile: false },
+    { to: '/inventory', label: 'Inventario', mobile: false },
+    { to: '/notifications', label: 'Notificaciones' },
+    { to: '/settings', label: 'Configuración' },
+    { to: '/configuracion/usuarios', label: 'Usuarios', mobile: false },
   ],
   seguridad: [
-    { to: '/seguridad/cola', label: 'Cola', icon: '🛡️' },
-    { to: '/seguridad/mapa', label: 'Mapa', icon: '🗺️' },
+    { to: '/seguridad/cola', label: 'Cola' },
+    { to: '/mapa', label: 'Mapa' },
   ],
-  ti: [{ to: '/ti/tickets', label: 'Tickets', icon: '🧰' }],
+  ti: [
+    { to: '/ti/tickets', label: 'Tickets' },
+    { to: '/mapa', label: 'Mapa', mobile: false },
+  ],
   usuario: [
-    { to: '/inicio', label: 'Inicio', icon: '🏠' },
-    { to: '/reportar', label: 'Reportar', icon: '➕', primary: true },
-    { to: '/mis-reportes', label: 'Mis reportes', icon: '📄' },
-    { to: '/perfil', label: 'Perfil', icon: '👤' },
+    { to: '/inicio', label: 'Inicio' },
+    { to: '/reportar', label: 'Reportar', primary: true },
+    { to: '/mapa', label: 'Mapa', mobile: false },
+    { to: '/mis-reportes', label: 'Mis reportes' },
+    { to: '/perfil', label: 'Perfil' },
   ],
 }
 

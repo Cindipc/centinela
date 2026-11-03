@@ -134,7 +134,8 @@ function submit() {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(4, 7, 16, 0.7);
+  background: var(--overlay);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -185,25 +186,32 @@ function submit() {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 13px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
 
 .field input,
 .field select,
 .field textarea {
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
   color: var(--text);
   padding: 9px 12px;
   outline: none;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .field input:focus,
 .field select:focus,
 .field textarea:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(47, 224, 234, 0.16), 0 0 18px rgba(47, 224, 234, 0.22);
 }
 
 .modal__foot {

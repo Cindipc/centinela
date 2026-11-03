@@ -141,9 +141,9 @@ function formatDate(iso: string): string {
 
 .summary__resolution {
   padding: 12px 14px;
-  border-radius: 8px;
-  background: rgba(46, 213, 115, 0.1);
-  border: 1px solid rgba(46, 213, 115, 0.35);
+  border-radius: 10px;
+  background: var(--success-soft);
+  border: 1px solid rgba(85, 224, 176, 0.35);
   font-size: 14px;
 }
 </style>

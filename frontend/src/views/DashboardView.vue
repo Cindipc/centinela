@@ -67,10 +67,10 @@ const zoneActivity = computed(() => {
     </header>
 
     <section class="stats-grid">
-      <StatsCard label="Incidencias abiertas" :value="openIncidents.length" tone="warning" icon="⚠️" />
-      <StatsCard label="Críticas activas" :value="criticalIncidents.length" tone="danger" icon="🚨" />
-      <StatsCard label="Notificaciones no leídas" :value="notificationsStore.unreadCount" tone="info" icon="🔔" />
-      <StatsCard label="Equipos en servicio" :value="92" tone="success" icon="📷" suffix="%" />
+      <StatsCard label="Incidencias abiertas" :value="openIncidents.length" tone="warning" />
+      <StatsCard label="Críticas activas" :value="criticalIncidents.length" tone="danger" />
+      <StatsCard label="Notificaciones no leídas" :value="notificationsStore.unreadCount" tone="info" />
+      <StatsCard label="Equipos en servicio" :value="92" tone="success" suffix="%" />
     </section>
 
     <section class="dashboard__grid">

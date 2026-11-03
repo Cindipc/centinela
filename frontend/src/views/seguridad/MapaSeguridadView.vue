@@ -110,12 +110,18 @@ const zoneFilter = ref('')
 }
 
 .mapa__select {
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
   color: var(--text);
   padding: 9px 12px;
   outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.mapa__select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(47, 224, 234, 0.16);
 }
 
 .mapa__item {

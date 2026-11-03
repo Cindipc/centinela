@@ -1,18 +1,44 @@
 import { getSupabase } from '../supabase/client'
-import type { Incident, Notification } from '../types'
-import { mapIncident, mapNotification } from './mappers'
+import type { Incident, Notification, PanicAlert } from '../types'
+import { mapIncident, mapNotification, mapPanicAlert } from './mappers'
 
 export type Unsubscribe = () => void
 
-export function subscribeToIncidents(onIncident: (incident: Incident) => void): Unsubscribe {
+export function subscribeToIncidents(
+  onInsert: (incident: Incident) => void,
+  onUpdate?: (incident: Incident) => void
+): Unsubscribe {
   const supabase = getSupabase()
   const channel = supabase
     .channel('incidents-changes')
     .on(
       'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'incidents' },
+      { event: '*', schema: 'public', table: 'incidents' },
       (payload) => {
-        onIncident(mapIncident(payload.new as never))
+        const mapped = mapIncident(payload.new as never)
+        if (payload.eventType === 'INSERT') onInsert(mapped)
+        else if (payload.eventType === 'UPDATE') onUpdate?.(mapped)
+      }
+    )
+    .subscribe()
+  return () => {
+    supabase.removeChannel(channel)
+  }
+}
+
+/** Alertas de pánico en vivo (INSERT y UPDATE de estado). RLS limita lo que llega. */
+export function subscribeToPanics(
+  onChange: (alert: PanicAlert, eventType: 'INSERT' | 'UPDATE') => void
+): Unsubscribe {
+  const supabase = getSupabase()
+  const channel = supabase
+    .channel('panic-changes')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'panic_alerts' },
+      (payload) => {
+        if (payload.eventType !== 'INSERT' && payload.eventType !== 'UPDATE') return
+        onChange(mapPanicAlert(payload.new as never), payload.eventType)
       }
     )
     .subscribe()

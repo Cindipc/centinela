@@ -9,6 +9,7 @@ import {
   resolvePanicAlert,
   updateContact,
 } from '@backend/api/emergencyApi'
+import { subscribeToPanics } from '@backend/api/realtimeChannels'
 import { useAuthStore } from './auth'
 import type { EmergencyContact, EmergencyContactInput, PanicAlert } from '@backend/types'
 
@@ -88,6 +89,27 @@ export const useEmergencyStore = defineStore('emergency', () => {
     return updated
   }
 
+  let unsubscribePanics: (() => void) | null = null
+
+  /** Realtime de panic_alerts: INSERT agrega (y avisa), UPDATE sincroniza el estado. */
+  function listenPanics(onInsert?: (alert: PanicAlert) => void) {
+    if (unsubscribePanics) return
+    unsubscribePanics = subscribeToPanics((alert, eventType) => {
+      const index = panicAlerts.value.findIndex((p) => p.id === alert.id)
+      if (eventType === 'INSERT' && index === -1) {
+        panicAlerts.value.unshift(alert)
+        onInsert?.(alert)
+      } else if (index !== -1) {
+        panicAlerts.value[index] = alert
+      }
+    })
+  }
+
+  function stopPanics() {
+    unsubscribePanics?.()
+    unsubscribePanics = null
+  }
+
   return {
     contacts,
     panicAlerts,
@@ -101,5 +123,7 @@ export const useEmergencyStore = defineStore('emergency', () => {
     fetchPanics,
     triggerPanic,
     closePanic,
+    listenPanics,
+    stopPanics,
   }
 })

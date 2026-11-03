@@ -85,6 +85,15 @@ Crea los archivos `.env` correspondientes a cada parte del proyecto y configura 
 
 No subas archivos `.env` al repositorio. Estos deben estar incluidos en `.gitignore`.
 
+### Mapa del campus (Mapbox)
+
+1. Crea una cuenta en [Mapbox](https://account.mapbox.com/) y genera un **token público de URL** (`pk...`).
+2. **Restringe el token por URL/domains** en el panel de Mapbox (agrega tu dominio y `http://localhost:5173`). El token viaja al navegador por diseño; sin restricción, cualquiera podría gastar tu cuota.
+3. Copia `frontend/.env.example` a `frontend/.env` y llena `VITE_MAPBOX_TOKEN`.
+4. Reinicia `npm run dev`. Si el token falta o es inválido, el mapa muestra un estado claro con instrucciones.
+
+El mapa real está en `/mapa` (`frontend/src/views/MapView.vue`); usa capas GeoJSON con agrupación, mapa de calor y edificios 3D. El centro por defecto del campus se cambia en `backend/config/map.ts` (`CAMPUS_CENTER`).
+
 ## Desarrollo
 
 Para trabajar en el proyecto necesitas ejecutar el frontend y el backend por separado.

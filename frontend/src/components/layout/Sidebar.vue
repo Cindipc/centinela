@@ -17,7 +17,7 @@ const unread = computed(() => notificationsStore.unreadCount)
 <template>
   <aside class="sidebar">
     <div class="sidebar__brand">
-      <img src="/src/assets/logo.svg" alt="Centinela" width="34" height="34" />
+      <img src="/src/assets/logo.png" alt="Centinela" width="34" height="34" />
       <span class="sidebar__title">Centinela</span>
     </div>
 
@@ -29,7 +29,6 @@ const unread = computed(() => notificationsStore.unreadCount)
         class="sidebar__link"
         :class="{ 'sidebar__link--active': isActivePath(route.path, item.to) }"
       >
-        <span class="sidebar__icon">{{ item.icon }}</span>
         <span>{{ item.label }}</span>
         <span v-if="item.to === '/notifications' && unread > 0" class="sidebar__dot">
           {{ unread }}
@@ -51,7 +50,8 @@ const unread = computed(() => notificationsStore.unreadCount)
 .sidebar {
   width: 228px;
   flex-shrink: 0;
-  background: var(--bg-raised);
+  background: var(--shell-bg);
+  backdrop-filter: blur(12px);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -65,10 +65,19 @@ const unread = computed(() => notificationsStore.unreadCount)
   padding: 4px 8px 18px;
 }
 
+.sidebar__brand img {
+  filter: drop-shadow(0 0 10px var(--accent-soft));
+}
+
 .sidebar__title {
   font-size: 18px;
   font-weight: 700;
-  letter-spacing: 0.3px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  background: linear-gradient(180deg, var(--heading-from), var(--steel-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .sidebar__nav {
@@ -92,18 +101,15 @@ const unread = computed(() => notificationsStore.unreadCount)
 }
 
 .sidebar__link:hover {
-  background: var(--bg-card);
-  color: var(--text);
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .sidebar__link--active {
-  background: var(--accent);
-  color: #fff;
-}
-
-.sidebar__icon {
-  width: 20px;
-  text-align: center;
+  background: linear-gradient(180deg, #5df0f7, var(--primary));
+  color: #032029;
+  font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 18px rgba(47, 224, 234, 0.35);
 }
 
 .sidebar__dot {
@@ -148,7 +154,7 @@ const unread = computed(() => notificationsStore.unreadCount)
   height: 8px;
   border-radius: 50%;
   background: var(--success);
-  box-shadow: 0 0 0 4px rgba(46, 213, 115, 0.2);
+  box-shadow: 0 0 0 4px rgba(85, 224, 176, 0.2), 0 0 10px rgba(85, 224, 176, 0.6);
 }
 
 @media (max-width: 768px) {

@@ -44,7 +44,7 @@ function relTime(iso: string): string {
         @click="store.markOne(n.id)"
       >
         <div class="notification__icon" :class="{ 'notify--critical': !!n.relatedIncidentId }">{{
-          n.relatedIncidentId ? '🚨' : '🔔'
+          n.relatedIncidentId ? '' : ''
         }}</div>
         <div class="notification__body">
           <div class="notification__title">
@@ -97,9 +97,9 @@ function relTime(iso: string): string {
   flex-shrink: 0;
 }
 
-.notify--critical { background: rgba(255, 71, 87, 0.15); }
-.notify--warning { background: rgba(255, 165, 2, 0.15); }
-.notify--info { background: rgba(24, 185, 242, 0.15); }
+.notify--critical { background: rgba(255, 122, 136, 0.15); }
+.notify--warning { background: rgba(245, 194, 107, 0.15); }
+.notify--info { background: rgba(47, 224, 234, 0.15); }
 
 .notification__body {
   flex: 1;

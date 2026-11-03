@@ -21,10 +21,9 @@ const items = computed(() => mobileNavItemsFor(user.value?.role))
         'bottombar__link--active': isActivePath(route.path, item.to),
         'bottombar__link--primary': item.primary,
       }"
-    >
-      <span class="bottombar__icon">{{ item.icon }}</span>
-      <span class="bottombar__label">{{ item.label }}</span>
-    </router-link>
+      >
+        <span class="bottombar__label">{{ item.label }}</span>
+      </router-link>
   </nav>
 </template>
 
@@ -45,7 +44,8 @@ const items = computed(() => mobileNavItemsFor(user.value?.role))
     align-items: stretch;
     gap: 2px;
     padding: 6px 6px calc(6px + env(safe-area-inset-bottom, 0px));
-    background: var(--bg-raised);
+    background: var(--shell-bg);
+    backdrop-filter: blur(12px);
     border-top: 1px solid var(--border);
   }
 
@@ -66,21 +66,13 @@ const items = computed(() => mobileNavItemsFor(user.value?.role))
   }
 
   .bottombar__link--active {
-    color: var(--accent);
-    background: rgba(47, 125, 255, 0.12);
-  }
-
-  .bottombar__icon {
-    font-size: 18px;
-    line-height: 1;
+    color: #032029;
+    background: linear-gradient(180deg, #5df0f7, var(--primary));
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 14px rgba(47, 224, 234, 0.35);
   }
 
   .bottombar__label {
     white-space: nowrap;
-  }
-
-  .bottombar__link--primary .bottombar__icon {
-    color: var(--accent);
   }
 }
 </style>

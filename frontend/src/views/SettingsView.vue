@@ -2,9 +2,11 @@
 import { ref, computed } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 import { useRole } from '@/composables/useRole'
+import { useTheme } from '@/composables/useTheme'
 
 const { user } = useAuth()
 const { role, isAdmin, canReportIncidents, canManageEquipment, canScanQr } = useRole()
+const { theme, setTheme } = useTheme()
 
 const roleLabels: Record<string, string> = {
   usuario: 'Usuario',
@@ -87,6 +89,36 @@ function save() {
     </section>
 
     <section class="card settings__section">
+      <h2>Apariencia</h2>
+      <div class="settings__field settings__field--row">
+        <span>Tema de la interfaz</span>
+        <div class="theme-switch" role="group" aria-label="Tema de la interfaz">
+          <button
+            type="button"
+            class="theme-switch__option"
+            :class="{ 'theme-switch__option--active': theme === 'light' }"
+            :aria-pressed="theme === 'light'"
+            @click="setTheme('light')"
+          >
+            Claro
+          </button>
+          <button
+            type="button"
+            class="theme-switch__option"
+            :class="{ 'theme-switch__option--active': theme === 'dark' }"
+            :aria-pressed="theme === 'dark'"
+            @click="setTheme('dark')"
+          >
+            Oscuro
+          </button>
+        </div>
+      </div>
+      <p class="text-muted settings__role">
+        Si no eliges un tema, se usa el tema del sistema (Edge en claro se verá en claro; un visor en oscuro se verá en oscuro).
+      </p>
+    </section>
+
+    <section class="card settings__section">
       <h2>Administración</h2>
       <p class="text-muted settings__role">
         El registro es cerrado: las cuentas nuevas las crea un administrador y se les asigna el rol al momento del alta.
@@ -136,12 +168,14 @@ function save() {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
+  border: 1px solid var(--emblem-ring);
+  background: linear-gradient(180deg, #5df0f7, var(--primary));
+  color: #032029;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
+  box-shadow: 0 0 14px rgba(47, 224, 234, 0.35);
 }
 
 .settings__name {
@@ -183,11 +217,52 @@ function save() {
 }
 
 .settings__field select {
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
   color: var(--text);
   padding: 8px 12px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.settings__field select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(47, 224, 234, 0.16);
+}
+
+.theme-switch {
+  display: inline-flex;
+  padding: 3px;
+  gap: 3px;
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
+  background: var(--input-bg);
+}
+
+.theme-switch__option {
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.15s, color 0.15s;
+}
+
+.theme-switch__option:hover {
+  color: var(--accent);
+}
+
+.theme-switch__option--active {
+  background: linear-gradient(180deg, #5df0f7, var(--primary));
+  color: #032029;
+}
+
+.theme-switch__option:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .settings__actions {

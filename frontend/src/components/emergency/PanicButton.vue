@@ -51,7 +51,7 @@ async function send() {
     </Transition>
 
     <button class="panic__button" :disabled="emergency.sending" @click="confirming = true">
-      <span class="panic__icon">🆘</span>
+      <span class="panic__icon">SOS</span>
       <span class="panic__label">Pánico</span>
     </button>
 
@@ -111,20 +111,21 @@ async function send() {
   margin: 0;
   max-width: 280px;
   padding: 10px 14px;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 13px;
-  background: var(--bg-card);
+  background: var(--panel-solid);
   border: 1px solid var(--border);
+  backdrop-filter: blur(8px);
 }
 
 .panic__toast--ok {
   color: var(--success);
-  border-color: rgba(46, 213, 115, 0.4);
+  border-color: rgba(85, 224, 176, 0.4);
 }
 
 .panic__toast--error {
   color: var(--danger);
-  border-color: rgba(255, 71, 87, 0.4);
+  border-color: rgba(255, 122, 136, 0.4);
 }
 
 .panic-toast-enter-active,
@@ -141,7 +142,8 @@ async function send() {
   position: fixed;
   inset: 0;
   z-index: 120;
-  background: rgba(4, 7, 16, 0.75);
+  background: var(--overlay);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -175,8 +177,8 @@ async function send() {
 }
 
 @keyframes panicPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.45); }
-  50% { box-shadow: 0 0 0 10px rgba(255, 71, 87, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 122, 136, 0.5); }
+  50% { box-shadow: 0 0 0 10px rgba(255, 122, 136, 0); }
 }
 
 @media (max-width: 768px) {

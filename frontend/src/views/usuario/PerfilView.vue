@@ -199,13 +199,15 @@ const tel = (phone: string) => `tel:${phone}`
   width: 58px;
   height: 58px;
   border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
+  border: 1px solid var(--emblem-ring);
+  background: linear-gradient(180deg, #5df0f7, var(--primary));
+  color: #032029;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 700;
   font-size: 18px;
+  box-shadow: 0 0 16px rgba(47, 224, 234, 0.35);
 }
 
 .perfil__data {
@@ -229,8 +231,8 @@ const tel = (phone: string) => `tel:${phone}`
 
 .perfil__panic {
   padding: 18px;
-  border-color: rgba(255, 71, 87, 0.45);
-  background: rgba(255, 71, 87, 0.08);
+  border-color: rgba(255, 122, 136, 0.45);
+  background: rgba(255, 122, 136, 0.08);
 }
 
 .perfil__panic h2 {
@@ -280,8 +282,9 @@ const tel = (phone: string) => `tel:${phone}`
   justify-content: space-between;
   gap: 12px;
   padding: 10px 12px;
-  border-radius: 8px;
-  background: var(--bg-raised);
+  border-radius: 10px;
+  background: var(--input-bg);
+  border: 1px solid var(--border);
   font-size: 14px;
 }
 
@@ -302,16 +305,18 @@ const tel = (phone: string) => `tel:${phone}`
 }
 
 .contacts__form input {
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
   color: var(--text);
   padding: 10px 12px;
   outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .contacts__form input:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(47, 224, 234, 0.16), 0 0 18px rgba(47, 224, 234, 0.22);
 }
 
 .btn--small {

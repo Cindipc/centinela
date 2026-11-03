@@ -122,7 +122,7 @@ function onChangeStatus(incident: Incident, event: Event) {
 }
 
 .table tbody tr:hover {
-  background: var(--bg-raised);
+  background: rgba(47, 224, 234, 0.05);
 }
 
 .table__title {
@@ -136,7 +136,7 @@ function onChangeStatus(incident: Incident, event: Event) {
 }
 
 .table__status {
-  background: transparent;
+  background: var(--input-bg);
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 999px;

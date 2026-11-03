@@ -33,12 +33,12 @@ function open(incident: Incident) {
         <p class="text-muted">
           {{ pendingCount }} pendientes · {{ inProgressCount }} en proceso
           <template v-if="emergency.activePanics.length > 0">
-            · 🚨 {{ emergency.activePanics.length }} alertas de pánico
+            ·  {{ emergency.activePanics.length }} alertas de pánico
           </template>
         </p>
       </div>
       <div class="page-header__actions">
-        <router-link class="btn btn--ghost" to="/seguridad/mapa">🗺️ Ver mapa</router-link>
+        <router-link class="btn btn--ghost" to="/seguridad/mapa">Ver mapa</router-link>
       </div>
     </header>
 
@@ -80,8 +80,8 @@ function open(incident: Incident) {
 
 .cola__panics {
   padding: 16px;
-  border-color: rgba(255, 71, 87, 0.45);
-  background: rgba(255, 71, 87, 0.08);
+  border-color: rgba(255, 122, 136, 0.45);
+  background: rgba(255, 122, 136, 0.08);
 }
 
 .cola__panics h2 {

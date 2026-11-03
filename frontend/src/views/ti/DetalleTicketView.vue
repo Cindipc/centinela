@@ -243,15 +243,17 @@ const categoryLabels: Record<string, string> = {
   flex-direction: column;
   gap: 2px;
   padding: 10px 12px;
-  border-radius: 8px;
-  background: var(--bg-raised);
+  border-radius: 10px;
+  background: var(--input-bg);
   border: 1px solid var(--border);
   color: var(--text);
   font-size: 13px;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .ticket__history-btn:hover {
   border-color: var(--accent);
+  box-shadow: 0 0 14px rgba(47, 224, 234, 0.18);
 }
 
 .ticket__history-title {

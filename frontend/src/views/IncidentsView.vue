@@ -84,7 +84,8 @@ async function handleChangeStatus(incident: Incident, status: Incident['status']
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(4, 7, 16, 0.7);
+  background: var(--overlay);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;

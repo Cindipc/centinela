@@ -2,6 +2,7 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { Map as MapboxMap, Marker } from 'mapbox-gl'
 import type { GeoPoint } from '@backend/types'
+import { useTheme } from '@/composables/useTheme'
 
 export interface MapPin {
   id: string
@@ -19,16 +20,22 @@ const props = defineProps<{
 const container = ref<HTMLElement | null>(null)
 const ready = ref(false)
 const token = (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined) ?? ''
+const { theme } = useTheme()
+
+const MAP_STYLES = {
+  dark: 'mapbox://styles/mapbox/dark-v11',
+  light: 'mapbox://styles/mapbox/light-v11',
+} as const
 
 let map: MapboxMap | null = null
 let markers: Marker[] = []
 let mapbox: typeof import('mapbox-gl').default | null = null
 
 const TONE_COLORS: Record<MapPin['tone'], string> = {
-  critical: '#ff4757',
-  warning: '#ffa502',
-  info: '#18b9f2',
-  ok: '#2ed573',
+  critical: '#ff7a88',
+  warning: '#f5c26b',
+  info: '#2fe0ea',
+  ok: '#55e0b0',
 }
 
 function clearMarkers() {
@@ -45,6 +52,7 @@ function drawPins() {
     element.type = 'button'
     element.className = 'mapbox-pin'
     element.style.background = TONE_COLORS[pin.tone]
+    element.style.color = TONE_COLORS[pin.tone]
     element.title = pin.label
     element.setAttribute('aria-label', pin.label)
     element.addEventListener('click', () =>
@@ -63,7 +71,7 @@ onMounted(async () => {
   const start: [number, number] = props.center ? [props.center.lng, props.center.lat] : [-77.029, -12.114]
   map = new mapbox.Map({
     container: container.value,
-    style: 'mapbox://styles/mapbox/dark-v11',
+    style: MAP_STYLES[theme.value],
     center: start,
     zoom: props.zoom ?? 15,
   })
@@ -87,6 +95,10 @@ watch(
   },
   { deep: true }
 )
+
+watch(theme, (value) => {
+  map?.setStyle(MAP_STYLES[value])
+})
 </script>
 
 <template>
@@ -110,6 +122,7 @@ watch(
   border: 1px solid var(--border);
   min-height: 380px;
   background: var(--bg-raised);
+  box-shadow: var(--shadow-card);
 }
 
 .map__canvas {
@@ -149,8 +162,8 @@ watch(
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  border: 2px solid var(--bg);
+  border: 2px solid rgba(232, 236, 239, 0.85);
   cursor: pointer;
-  box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 0 12px currentColor, 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 </style>

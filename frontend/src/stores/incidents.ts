@@ -49,6 +49,24 @@ export const useIncidentsStore = defineStore('incidents', () => {
 
   let unsubscribe: (() => void) | null = null
 
+  /** Realtime compartido: INSERT agrega, UPDATE reemplaza (estado, asignación, etc.). */
+  function listenRealtime(onInsert?: (incident: Incident) => void) {
+    if (unsubscribe) return
+    unsubscribe = subscribeToIncidents(
+      (incident) => {
+        const exists = incidents.value.some((i) => i.id === incident.id)
+        if (!exists) {
+          incidents.value.unshift(incident)
+          onInsert?.(incident)
+        }
+      },
+      (incident) => {
+        const index = incidents.value.findIndex((i) => i.id === incident.id)
+        if (index !== -1) incidents.value[index] = incident
+      }
+    )
+  }
+
   async function fetchIncidents() {
     loading.value = true
     try {
@@ -72,16 +90,6 @@ export const useIncidentsStore = defineStore('incidents', () => {
     const [zonesData, staffData] = await Promise.all([getZones(), getStaff()])
     zones.value = zonesData
     staff.value = staffData
-  }
-
-  function listenRealtime() {
-    if (unsubscribe) return
-    unsubscribe = subscribeToIncidents((incident) => {
-      const exists = incidents.value.some((i) => i.id === incident.id)
-      if (!exists) {
-        incidents.value.unshift(incident)
-      }
-    })
   }
 
   async function addIncident(input: IncidentInput) {

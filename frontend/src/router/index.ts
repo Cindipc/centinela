@@ -9,6 +9,7 @@ import EmergencyView from '@/views/EmergencyView.vue'
 import InventoryView from '@/views/InventoryView.vue'
 import NotificationsView from '@/views/NotificationsView.vue'
 import SettingsView from '@/views/SettingsView.vue'
+import MapView from '@/views/MapView.vue'
 import UsersView from '@/views/admin/UsersView.vue'
 import LoginView from '@/views/LoginView.vue'
 import InicioView from '@/views/usuario/InicioView.vue'
@@ -45,6 +46,10 @@ const router = createRouter({
     { path: '/notifications', name: 'notifications', component: NotificationsView, meta: { roles: ADMIN } },
     { path: '/settings', name: 'settings', component: SettingsView, meta: { roles: ADMIN } },
     { path: '/configuracion/usuarios', name: 'users', component: UsersView, meta: { roles: ADMIN } },
+
+    // ---- Mapa del campus (accesible a todos los roles autenticados;
+    //      los datos que se ven los limita RLS, no el frontend) ----
+    { path: '/mapa', name: 'mapa', component: MapView },
 
     // ---- Rol usuario ----
     { path: '/inicio', name: 'inicio', component: InicioView, meta: { roles: USUARIO } },

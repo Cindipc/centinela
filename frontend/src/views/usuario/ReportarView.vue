@@ -115,12 +115,12 @@ async function submit() {
       <div class="report__types">
         <label class="type" :class="{ 'type--active': form.type === 'seguridad' }">
           <input v-model="form.type" type="radio" value="seguridad" @change="onTypeChange" />
-          <span class="type__icon">🛡️</span>
+          <span class="type__icon"></span>
           <span class="type__label">Seguridad</span>
         </label>
         <label class="type" :class="{ 'type--active': form.type === 'equipo' }">
           <input v-model="form.type" type="radio" value="equipo" @change="onTypeChange" />
-          <span class="type__icon">🧰</span>
+          <span class="type__icon"></span>
           <span class="type__label">Equipo</span>
         </label>
       </div>
@@ -208,11 +208,13 @@ async function submit() {
   border: 1px solid var(--border);
   background: var(--bg-raised);
   cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
 }
 
 .type--active {
   border-color: var(--accent);
-  background: rgba(47, 125, 255, 0.12);
+  background: var(--accent-soft);
+  box-shadow: 0 0 18px rgba(47, 224, 234, 0.22);
 }
 
 .type input {
@@ -238,30 +240,37 @@ async function submit() {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 13px;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
 
 .field input,
 .field select,
 .field textarea {
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: 8px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: 10px;
   color: var(--text);
   padding: 10px 12px;
   outline: none;
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 14px;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .field input:focus,
 .field select:focus,
 .field textarea:focus {
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(47, 224, 234, 0.16), 0 0 18px rgba(47, 224, 234, 0.22);
 }
 
 .report__preview {
   max-width: 220px;
-  border-radius: 8px;
+  border-radius: 10px;
   border: 1px solid var(--border);
   align-self: flex-start;
 }
@@ -275,9 +284,9 @@ async function submit() {
 .report__ok {
   margin: 0;
   padding: 12px 14px;
-  border-radius: 8px;
-  background: rgba(46, 213, 115, 0.15);
-  border: 1px solid rgba(46, 213, 115, 0.4);
+  border-radius: 10px;
+  background: var(--success-soft);
+  border: 1px solid rgba(85, 224, 176, 0.4);
   color: var(--success);
   font-size: 14px;
 }
@@ -285,9 +294,9 @@ async function submit() {
 .report__error {
   margin: 0;
   padding: 12px 14px;
-  border-radius: 8px;
-  background: rgba(255, 71, 87, 0.12);
-  border: 1px solid rgba(255, 71, 87, 0.4);
+  border-radius: 10px;
+  background: var(--danger-soft);
+  border: 1px solid rgba(255, 122, 136, 0.4);
   color: var(--danger);
   font-size: 14px;
 }

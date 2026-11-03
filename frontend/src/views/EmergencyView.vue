@@ -48,7 +48,7 @@ const protocols = [
 
     <section class="emergency__sos" :class="{ 'emergency__sos--empty': critical.length === 0 }">
       <button class="emergency__button" @click="router.push({ name: 'new-report' })">
-        <span class="emergency__button-icon">🆘</span>
+        <span class="emergency__button-icon">SOS</span>
         <span>Alerta de emergencia</span>
       </button>
       <p class="text-muted">
@@ -94,8 +94,8 @@ const protocols = [
   gap: 18px;
   padding: 18px;
   border-radius: var(--radius);
-  background: rgba(255, 71, 87, 0.1);
-  border: 1px solid rgba(255, 71, 87, 0.4);
+  background: rgba(255, 122, 136, 0.08);
+  border: 1px solid rgba(255, 122, 136, 0.4);
 }
 
 .emergency__sos--empty {
@@ -122,8 +122,8 @@ const protocols = [
 }
 
 @keyframes sosPulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 71, 87, 0.5); }
-  50% { box-shadow: 0 0 0 12px rgba(255, 71, 87, 0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 122, 136, 0.5); }
+  50% { box-shadow: 0 0 0 12px rgba(255, 122, 136, 0); }
 }
 
 .emergency__grid {

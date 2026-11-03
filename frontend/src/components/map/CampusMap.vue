@@ -16,12 +16,12 @@ const zones = [
     </header>
     <div class="campus-map__canvas">
       <svg viewBox="0 0 100 80" preserveAspectRatio="none" class="campus-map__grid">
-        <rect x="2" y="2" width="96" height="76" fill="rgba(255,255,255,0.03)" stroke="var(--border)" />
-        <rect x="28" y="15" width="12" height="14" fill="rgba(255,255,255,0.06)" stroke="var(--border)" />
-        <rect x="50" y="28" width="12" height="14" fill="rgba(255,255,255,0.06)" stroke="var(--border)" />
-        <rect x="42" y="60" width="10" height="12" fill="rgba(255,255,255,0.06)" stroke="var(--border)" />
-        <rect x="66" y="66" width="10" height="12" fill="rgba(255,255,255,0.06)" stroke="var(--border)" />
-        <path d="M30 20 H 55 72" stroke="var(--border)" stroke-width="0.4" fill="none" stroke-dasharray="1.5 1.5" />
+        <rect class="campus-map__base" x="2" y="2" width="96" height="76" />
+        <rect x="28" y="15" width="12" height="14" fill="rgba(20, 169, 184, 0.2)" stroke="rgba(141, 176, 184, 0.35)" />
+        <rect x="50" y="28" width="12" height="14" fill="rgba(20, 169, 184, 0.2)" stroke="rgba(141, 176, 184, 0.35)" />
+        <rect x="42" y="60" width="10" height="12" fill="rgba(20, 169, 184, 0.2)" stroke="rgba(141, 176, 184, 0.35)" />
+        <rect x="66" y="66" width="10" height="12" fill="rgba(20, 169, 184, 0.2)" stroke="rgba(141, 176, 184, 0.35)" />
+        <path d="M30 20 H 55 72" stroke="rgba(141, 176, 184, 0.35)" stroke-width="0.4" fill="none" stroke-dasharray="1.5 1.5" />
       </svg>
       <div
         v-for="zone in zones"
@@ -92,6 +92,16 @@ const zones = [
   height: 100%;
 }
 
+.campus-map__base {
+  fill: rgba(12, 74, 87, 0.35);
+  stroke: rgba(141, 176, 184, 0.35);
+}
+
+:global(html[data-theme='light']) .campus-map__base {
+  fill: rgba(12, 74, 87, 0.06);
+  stroke: rgba(13, 60, 72, 0.3);
+}
+
 .campus-map__pin {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -106,7 +116,7 @@ const zones = [
   height: 12px;
   border-radius: 50%;
   border: 2px solid var(--bg);
-  box-shadow: 0 0 8px currentColor;
+  box-shadow: 0 0 10px currentColor;
 }
 
 .pin--ok .campus-map__pin-dot { background: var(--success); color: var(--success); }
@@ -116,10 +126,12 @@ const zones = [
 .campus-map__pin-label {
   font-size: 11px;
   color: var(--text);
-  background: rgba(11, 16, 32, 0.8);
+  background: var(--panel-solid);
+  border: 1px solid var(--border);
   padding: 1px 6px;
   border-radius: 4px;
   white-space: nowrap;
+  box-shadow: var(--shadow-card);
 }
 
 @keyframes pulse {
