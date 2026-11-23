@@ -16,10 +16,17 @@ import type {
   DbDepartmentRow,
   DbEmergencyContactRow,
   DbPanicAlertRow,
+  DbOrganizationRow,
+  DbLicenseRow,
+  DbAuditLogRow,
+  Organization,
+  License,
+  AuditLog,
 } from '../types'
 
 // ================= Perfiles =================
-export const PROFILE_SELECT = 'id, full_name, role, department_id, zone_id, phone'
+export const PROFILE_SELECT =
+  'id, full_name, role, department_id, zone_id, phone, organization_id, organizations(name)'
 
 export function mapProfile(row: DbProfileRow, email = ''): Profile {
   return {
@@ -30,6 +37,8 @@ export function mapProfile(row: DbProfileRow, email = ''): Profile {
     departmentId: row.department_id ?? null,
     zoneId: row.zone_id ?? null,
     phone: row.phone ?? null,
+    organizationId: row.organization_id ?? null,
+    organizationName: row.organizations?.name ?? null,
   }
 }
 
@@ -75,7 +84,7 @@ function parseEwkbHex(hex: string): GeoPoint | null {
 
 // ================= Incidents =================
 export const INCIDENT_SELECT = `
-  id, code, type, category, title, description, photo_url, location,
+  id, code, organization_id, type, category, title, description, photo_url, location,
   zone_id, equipment_id, priority, status, reported_by, assigned_to,
   resolution_note, created_at, updated_at, resolved_at,
   zones(name, location),
@@ -87,6 +96,7 @@ export function mapIncident(row: DbIncidentRow): Incident {
   return {
     id: row.id,
     code: row.code,
+    organizationId: row.organization_id ?? null,
     type: row.type,
     category: row.category ?? null,
     title: row.title,
@@ -111,7 +121,7 @@ export function mapIncident(row: DbIncidentRow): Incident {
 
 // ================= Equipment =================
 export const EQUIPMENT_SELECT = `
-  id, name, category, serial_number, zone_id, assigned_to, status, created_at,
+  id, organization_id, name, category, serial_number, zone_id, assigned_to, status, created_at,
   zones(name),
   assignee:assigned_to(full_name)
 `
@@ -119,6 +129,7 @@ export const EQUIPMENT_SELECT = `
 export function mapEquipment(row: DbEquipmentRow): Equipment {
   return {
     id: row.id,
+    organizationId: row.organization_id ?? null,
     name: row.name,
     category: row.category,
     serialNumber: row.serial_number ?? null,
@@ -133,13 +144,14 @@ export function mapEquipment(row: DbEquipmentRow): Equipment {
 
 // ================= Notifications =================
 export const NOTIFICATION_SELECT = `
-  id, title, message, related_incident_id, is_read, created_at,
+  id, organization_id, title, message, related_incident_id, is_read, created_at,
   incident:incidents(title)
 `
 
 export function mapNotification(row: DbNotificationRow): Notification {
   return {
     id: row.id,
+    organizationId: row.organization_id ?? null,
     title: row.title,
     message: row.message ?? null,
     relatedIncidentId: row.related_incident_id ?? null,
@@ -150,11 +162,12 @@ export function mapNotification(row: DbNotificationRow): Notification {
 }
 
 // ================= Zonas y departamentos =================
-export const ZONE_SELECT = 'id, name, building, department_id, location'
+export const ZONE_SELECT = 'id, organization_id, name, building, department_id, location'
 
 export function mapZone(row: DbZoneRow): Zone {
   return {
     id: row.id,
+    organizationId: row.organization_id ?? null,
     name: row.name,
     building: row.building,
     departmentId: row.department_id,
@@ -182,7 +195,7 @@ export function mapEmergencyContact(row: DbEmergencyContactRow): EmergencyContac
 
 // ================= Botón de pánico =================
 export const PANIC_SELECT = `
-  id, user_id, status, zone_id, location, created_at, resolved_at,
+  id, organization_id, user_id, status, zone_id, location, created_at, resolved_at,
   zones(name),
   reporter:user_id(full_name)
 `
@@ -191,6 +204,7 @@ export function mapPanicAlert(row: DbPanicAlertRow): PanicAlert {
   const point = parsePoint(row.location)
   return {
     id: row.id,
+    organizationId: row.organization_id ?? null,
     userId: row.user_id ?? '',
     userName: row.reporter?.full_name ?? null,
     status: row.status,
@@ -199,5 +213,68 @@ export function mapPanicAlert(row: DbPanicAlertRow): PanicAlert {
     longitude: point?.lng ?? null,
     createdAt: row.created_at,
     resolvedAt: row.resolved_at,
+  }
+}
+
+// ================= Universidades, licencias y auditoría =================
+export const ORGANIZATION_SELECT =
+  'id, name, slug, address, center_lat, center_lng, status, created_at'
+
+export function mapOrganization(row: DbOrganizationRow): Organization {
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug ?? null,
+    address: row.address ?? null,
+    centerLat: row.center_lat ?? null,
+    centerLng: row.center_lng ?? null,
+    status: row.status,
+    createdAt: row.created_at,
+  }
+}
+
+export const LICENSE_SELECT = `
+  id, organization_id, plan, status, start_date, end_date, max_users, max_zones,
+  notes, created_at, organizations(name)
+`
+
+export function mapLicense(
+  row: DbLicenseRow,
+  effectiveStatus: License['effectiveStatus']
+): License {
+  return {
+    id: row.id,
+    organizationId: row.organization_id,
+    organizationName: row.organizations?.name ?? null,
+    plan: row.plan,
+    status: row.status,
+    effectiveStatus,
+    startDate: row.start_date,
+    endDate: row.end_date,
+    maxUsers: row.max_users,
+    maxZones: row.max_zones,
+    notes: row.notes ?? null,
+    createdAt: row.created_at,
+  }
+}
+
+export const AUDIT_SELECT = `
+  id, organization_id, user_id, action, table_name, record_id, old_data, new_data,
+  created_at, organizations(name), actor:user_id(full_name)
+`
+
+export function mapAuditLog(row: DbAuditLogRow): AuditLog {
+  return {
+    id: row.id,
+    organizationId: row.organization_id ?? null,
+    organizationName: row.organizations?.name ?? null,
+    userId: row.user_id ?? null,
+    userName: row.actor?.full_name ?? null,
+    action: row.action,
+    tableName: row.table_name,
+    recordId: row.record_id ?? null,
+    oldData: row.old_data ?? null,
+    newData: row.new_data ?? null,
+    createdAt: row.created_at,
   }
 }

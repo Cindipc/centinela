@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { createUser, getProfiles } from '@backend/api/usersApi'
+import { createUser, getProfiles, updateProfile } from '@backend/api/usersApi'
 import { getDepartments, getZones } from '@backend/api/zonesApi'
 import { ROLE_LABELS } from '@/navigation/roleNav'
 import type { Profile, Role } from '@backend/types'
@@ -14,6 +14,7 @@ const loading = ref(true)
 const creating = ref(false)
 const error = ref<string | null>(null)
 const notice = ref<string | null>(null)
+const editingId = ref<string | null>(null)
 
 const form = reactive({
   fullName: '',
@@ -45,29 +46,65 @@ async function submit() {
   notice.value = null
   creating.value = true
   try {
-    const created = await createUser({
-      fullName: form.fullName.trim(),
-      email: form.email.trim(),
-      password: form.password,
-      role: form.role,
-      phone: form.phone.trim() || null,
-      departmentId: form.departmentId || null,
-      zoneId: form.zoneId || null,
-    })
-    profiles.value.push(created)
-    notice.value = `Usuario ${created.name} creado con rol ${ROLE_LABELS[created.role]}.`
-    form.fullName = ''
-    form.email = ''
-    form.password = ''
-    form.phone = ''
-    form.departmentId = ''
-    form.zoneId = ''
-    form.role = 'usuario'
+    if (editingId.value) {
+      const updated = await updateProfile(editingId.value, {
+        fullName: form.fullName.trim(),
+        role: form.role,
+        phone: form.phone.trim() || null,
+        departmentId: form.departmentId || null,
+        zoneId: form.zoneId || null,
+      })
+      const index = profiles.value.findIndex((profile) => profile.id === updated.id)
+      if (index >= 0) profiles.value[index] = updated
+      notice.value = `Usuario ${updated.name} actualizado.`
+    } else {
+      const created = await createUser({
+        fullName: form.fullName.trim(),
+        email: form.email.trim(),
+        password: form.password,
+        role: form.role,
+        phone: form.phone.trim() || null,
+        departmentId: form.departmentId || null,
+        zoneId: form.zoneId || null,
+      })
+      profiles.value.push(created)
+      notice.value = `Usuario ${created.name} creado con rol ${ROLE_LABELS[created.role]}.`
+    }
+    cancelEdit()
   } catch (e) {
-    error.value = e instanceof Error ? e.message : 'No se pudo crear el usuario.'
+    error.value =
+      e instanceof Error
+        ? e.message
+        : editingId.value
+          ? 'No se pudo actualizar el usuario.'
+          : 'No se pudo crear el usuario.'
   } finally {
     creating.value = false
   }
+}
+
+function startEdit(profile: Profile) {
+  editingId.value = profile.id
+  form.fullName = profile.name
+  form.email = profile.email
+  form.password = ''
+  form.role = profile.role
+  form.phone = profile.phone ?? ''
+  form.departmentId = profile.departmentId ?? ''
+  form.zoneId = profile.zoneId ?? ''
+  error.value = null
+  notice.value = null
+}
+
+function cancelEdit() {
+  editingId.value = null
+  form.fullName = ''
+  form.email = ''
+  form.password = ''
+  form.phone = ''
+  form.departmentId = ''
+  form.zoneId = ''
+  form.role = 'usuario'
 }
 
 const zoneOf = (zoneId: string | null | undefined) => zones.value.find((z) => z.id === zoneId)?.name
@@ -89,7 +126,7 @@ const zoneOf = (zoneId: string | null | undefined) => zones.value.find((z) => z.
     <p v-if="error" class="users__error">{{ error }}</p>
 
     <section class="card users__card">
-      <h2>Crear usuario</h2>
+      <h2>{{ editingId ? 'Editar usuario' : 'Crear usuario' }}</h2>
       <form class="users__form" @submit.prevent="submit">
         <label class="field">
           <span>Nombre completo</span>
@@ -98,12 +135,24 @@ const zoneOf = (zoneId: string | null | undefined) => zones.value.find((z) => z.
 
         <label class="field">
           <span>Correo</span>
-          <input v-model.trim="form.email" type="email" required placeholder="ana@centinela.local" />
+          <input
+            v-model.trim="form.email"
+            type="email"
+            :required="!editingId"
+            :disabled="Boolean(editingId)"
+            placeholder="ana@centinela.local"
+          />
         </label>
 
-        <label class="field">
+        <label v-if="!editingId" class="field">
           <span>Contraseña temporal</span>
-          <input v-model="form.password" type="text" required minlength="8" placeholder="Mínimo 8 caracteres" />
+          <input
+            v-model="form.password"
+            type="text"
+            :required="!editingId"
+            :disabled="Boolean(editingId)"
+            minlength="8"
+            placeholder="Mínimo 8 caracteres" />
         </label>
 
         <label class="field">
@@ -140,8 +189,17 @@ const zoneOf = (zoneId: string | null | undefined) => zones.value.find((z) => z.
         </p>
 
         <footer class="users__foot">
+          <button
+            v-if="editingId"
+            class="btn btn--ghost"
+            type="button"
+            :disabled="creating"
+            @click="cancelEdit"
+          >
+            Cancelar edición
+          </button>
           <button class="btn" type="submit" :disabled="creating">
-            {{ creating ? 'Creando...' : 'Crear usuario' }}
+            {{ creating ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Crear usuario' }}
           </button>
         </footer>
       </form>
@@ -163,7 +221,8 @@ const zoneOf = (zoneId: string | null | undefined) => zones.value.find((z) => z.
               <th>Rol</th>
               <th>Departamento</th>
               <th>Zona</th>
-              <th>Teléfono</th>
+              <th>TelǸfono</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -177,9 +236,14 @@ const zoneOf = (zoneId: string | null | undefined) => zones.value.find((z) => z.
               <td class="text-muted">{{ departments.find((d) => d.id === profile.departmentId)?.name ?? '—' }}</td>
               <td class="text-muted">{{ zoneOf(profile.zoneId) ?? '—' }}</td>
               <td class="text-muted">{{ profile.phone ?? '—' }}</td>
+              <td>
+                <button class="btn btn--ghost btn--small" type="button" @click="startEdit(profile)">
+                  Editar
+                </button>
+              </td>
             </tr>
             <tr v-if="profiles.length === 0">
-              <td colspan="5" class="text-muted users__empty">Sin usuarios registrados.</td>
+              <td colspan="6" class="text-muted users__empty">Sin usuarios registrados.</td>
             </tr>
           </tbody>
         </table>

@@ -1,13 +1,21 @@
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, ref } from 'vue'
 import { useIncidentsStore } from '@/stores/incidents'
 import { useNotificationsStore } from '@/stores/notifications'
+import { useAuth } from '@/composables/useAuth'
 import StatsCard from '@/components/dashboard/StatsCard.vue'
 import ZoneActivityList from '@/components/dashboard/ZoneActivityList.vue'
-import CampusMap from '@/components/map/CampusMap.vue'
+import MapCanvas from '@/components/map/MapCanvas.vue'
+import AiInsightsPanel from '@/components/dashboard/AiInsightsPanel.vue'
+import { useRole } from '@/composables/useRole'
+import { DEFAULT_LAYER_VISIBILITY } from '@backend/config/map'
 
 const incidentsStore = useIncidentsStore()
 const notificationsStore = useNotificationsStore()
+const { user, organizationCenter, license } = useAuth()
+const { isAdmin } = useRole()
+const canvas = ref<InstanceType<typeof MapCanvas> | null>(null)
+const visibility = ref({ ...DEFAULT_LAYER_VISIBILITY })
 
 onMounted(() => {
   incidentsStore.fetchIncidents()
@@ -60,21 +68,41 @@ const zoneActivity = computed(() => {
 <template>
   <div class="dashboard">
     <header class="dashboard__header">
-      <h1>Panel de control</h1>
-      <p class="dashboard__subtitle">
-        Estado general del campus — {{ new Date().toLocaleString('es-ES') }}
-      </p>
+      <div>
+        <h1>Panel de control</h1>
+        <p class="dashboard__subtitle">
+          {{ user?.organizationName ?? 'Universidad' }} — {{ new Date().toLocaleString('es-ES') }}
+        </p>
+      </div>
+      <div v-if="license" class="license-chip" :class="`license-chip--${license.status}`">
+        <strong>{{ license.plan }}</strong>
+        <span>Licencia {{ license.status }} · vence {{ license.endDate }}</span>
+      </div>
     </header>
 
     <section class="stats-grid">
       <StatsCard label="Incidencias abiertas" :value="openIncidents.length" tone="warning" />
       <StatsCard label="Críticas activas" :value="criticalIncidents.length" tone="danger" />
       <StatsCard label="Notificaciones no leídas" :value="notificationsStore.unreadCount" tone="info" />
-      <StatsCard label="Equipos en servicio" :value="92" tone="success" suffix="%" />
+      <StatsCard label="Incidencias totales" :value="incidentsStore.incidents.length" tone="success" />
     </section>
 
+    <AiInsightsPanel v-if="isAdmin" />
+
     <section class="dashboard__grid">
-      <CampusMap class="dashboard__map" />
+      <MapCanvas
+        ref="canvas"
+        class="dashboard__map"
+        :incidents="incidentsStore.incidents"
+        :zones="incidentsStore.zones"
+        :panics="[]"
+        :satellite="false"
+        :visibility="visibility"
+        :picking="false"
+        :zone-editing="false"
+        :center="organizationCenter"
+        @map-ready="canvas?.fitToZones()"
+      />
       <ZoneActivityList :zones="zoneActivity" />
     </section>
   </div>
@@ -87,6 +115,14 @@ const zoneActivity = computed(() => {
   gap: 24px;
 }
 
+.dashboard__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
 .dashboard__header h1 {
   margin: 0;
   font-size: 24px;
@@ -97,6 +133,28 @@ const zoneActivity = computed(() => {
   color: var(--text-muted);
   font-size: 14px;
 }
+
+.license-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-card);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.license-chip strong {
+  color: var(--text);
+  font-size: 13px;
+}
+
+.license-chip--activa { border-color: rgba(85, 224, 176, 0.45); }
+.license-chip--vencida,
+.license-chip--suspendida { border-color: rgba(255, 122, 136, 0.45); }
+.license-chip--pendiente { border-color: rgba(245, 194, 107, 0.45); }
 
 .stats-grid {
   display: grid;

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
+import { useIncidentAi } from '@/composables/useIncidentAi'
 import type { Incident, IncidentInput, IncidentPriority, IncidentType, Zone, Profile } from '@backend/types'
 
 const props = defineProps<{
@@ -26,11 +27,25 @@ const emptyForm = (): IncidentInput => ({
 })
 
 const form = reactive<IncidentInput & { id?: string }>(emptyForm())
+const {
+  configured: aiConfigured,
+  analyzing: aiAnalyzing,
+  error: aiError,
+  suggestion: aiSuggestion,
+  duplicates: aiDuplicates,
+  analyze: analyzeWithAi,
+  reset: resetAi,
+} = useIncidentAi()
+
+const selectedZoneId = computed(
+  () => props.zones?.find((zone) => zone.name === form.zone)?.id ?? null
+)
 
 watch(
   () => props.show,
   (isOpen) => {
     if (!isOpen) return
+    resetAi()
     const base = props.incident
     form.title = base?.title ?? ''
     form.description = base?.description ?? ''
@@ -42,6 +57,24 @@ watch(
     form.id = base?.id
   }
 )
+
+function runAi() {
+  resetAi()
+  void analyzeWithAi({
+    type: form.type,
+    title: form.title,
+    description: form.description,
+    zone: form.zone,
+    zoneId: selectedZoneId.value,
+    excludeIncidentId: form.id ?? null,
+  })
+}
+
+function applySuggestion() {
+  if (!aiSuggestion.value) return
+  form.category = aiSuggestion.value.category
+  form.priority = aiSuggestion.value.priority
+}
 
 function submit() {
   if (!form.title.trim() || !form.description?.trim()) return
@@ -116,6 +149,47 @@ function submit() {
                 </select>
               </label>
             </div>
+
+            <section v-if="aiConfigured" class="ai-panel">
+              <div class="ai-panel__head">
+                <div>
+                  <strong>Asistente de IA</strong>
+                  <p class="text-muted">Sugerencias de clasificación y posibles duplicados.</p>
+                </div>
+                <button
+                  type="button"
+                  class="btn btn--ghost btn--small"
+                  :disabled="aiAnalyzing"
+                  @click="runAi"
+                >
+                  {{ aiAnalyzing ? 'Analizando...' : 'Analizar' }}
+                </button>
+              </div>
+              <p v-if="aiError" class="ai-panel__error">{{ aiError }}</p>
+
+              <div v-if="aiSuggestion" class="ai-panel__result">
+                <p>
+                  <strong>{{ aiSuggestion.category }}</strong> · prioridad
+                  {{ aiSuggestion.priority }} · {{ Math.round(aiSuggestion.confidence * 100) }}%
+                  confianza
+                </p>
+                <p class="text-muted">{{ aiSuggestion.summary }}</p>
+                <button type="button" class="btn btn--ghost btn--small" @click="applySuggestion">
+                  Usar categoría y prioridad sugeridas
+                </button>
+              </div>
+
+              <div v-if="aiDuplicates?.likelyDuplicate" class="ai-panel__duplicates">
+                <strong>Posibles duplicados</strong>
+                <ul>
+                  <li v-for="candidate in aiDuplicates.candidates" :key="candidate.incidentId">
+                    {{ candidate.code }} · {{ candidate.title }} ({{
+                      Math.round(candidate.similarity * 100)
+                    }}%)
+                  </li>
+                </ul>
+              </div>
+            </section>
           </div>
 
           <footer class="modal__foot">
@@ -212,6 +286,53 @@ function submit() {
 .field textarea:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(47, 224, 234, 0.16), 0 0 18px rgba(47, 224, 234, 0.22);
+}
+
+.ai-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--bg-raised);
+}
+
+.ai-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ai-panel__head p {
+  margin: 2px 0 0;
+  font-size: 11px;
+}
+
+.ai-panel__result,
+.ai-panel__duplicates {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12px;
+}
+
+.ai-panel__result p,
+.ai-panel__duplicates p {
+  margin: 0;
+}
+
+.ai-panel__result ul,
+.ai-panel__duplicates ul {
+  margin: 0;
+  padding-left: 16px;
+}
+
+.ai-panel__error {
+  color: var(--danger);
+  margin: 0;
+  font-size: 12px;
 }
 
 .modal__foot {

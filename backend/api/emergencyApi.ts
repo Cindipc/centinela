@@ -86,10 +86,14 @@ export async function createPanicAlert(input: {
 }
 
 /** Alertas de pánico: staff (admin/seguridad) ve todas; el usuario, las suyas. */
-export async function getPanicAlerts(userId?: string): Promise<PanicAlert[]> {
+export async function getPanicAlerts(
+  userId?: string,
+  organizationId?: string | null
+): Promise<PanicAlert[]> {
   const supabase = getSupabase()
   let query = supabase.from('panic_alerts').select(PANIC_SELECT).order('created_at', { ascending: false })
   if (userId) query = query.eq('user_id', userId)
+  if (organizationId) query = query.eq('organization_id', organizationId)
   const { data, error } = await query
   if (error) throw error
   return (data ?? []).map((r) => mapPanicAlert(r as never))

@@ -2,9 +2,11 @@
 import { ref } from 'vue'
 import { useEmergencyStore } from '@/stores/emergency'
 import { useAuth } from '@/composables/useAuth'
+import { useRole } from '@/composables/useRole'
 
 const emergency = useEmergencyStore()
 const { user } = useAuth()
+const { isSuperadmin } = useRole()
 
 /** Botón de pánico flotante: visible en todas las vistas, escribe en panic_alerts. */
 const confirming = ref(false)
@@ -44,7 +46,7 @@ async function send() {
 </script>
 
 <template>
-  <div v-if="user" class="panic">
+  <div v-if="user && !isSuperadmin" class="panic">
     <Transition name="panic-toast">
       <p v-if="message" class="panic__toast panic__toast--ok">{{ message }}</p>
       <p v-else-if="error" class="panic__toast panic__toast--error">{{ error }}</p>

@@ -10,14 +10,34 @@ async function resolveProfileId(nameOrId?: string | null): Promise<string | null
   if (!nameOrId) return null
   if (UUID_RE.test(nameOrId)) return nameOrId
   const supabase = getSupabase()
-  const { data } = await supabase.from('profiles').select('id').eq('full_name', nameOrId).maybeSingle()
+  const { data } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('full_name', nameOrId)
+    .limit(1)
+    .maybeSingle()
   return data?.id ?? null
 }
+
 async function nextCode(type: IncidentInput['type']): Promise<string> {
   const supabase = getSupabase()
+  const { data, error } = await supabase.rpc('next_incident_code', { p_type: type })
+  if (!error && typeof data === 'string') return data
   const { count } = await supabase.from('incidents').select('id', { count: 'exact', head: true })
   const seq = ((count ?? 0) + 1).toString().padStart(4, '0')
   return type === 'equipo' ? `TIC-${seq}` : `SEC-${seq}`
+}
+
+async function currentOrganizationId(): Promise<string | null> {
+  const supabase = getSupabase()
+  const { data: auth } = await supabase.auth.getUser()
+  if (!auth.user) return null
+  const { data } = await supabase
+    .from('profiles')
+    .select('organization_id')
+    .eq('id', auth.user.id)
+    .maybeSingle()
+  return (data?.organization_id as string | null) ?? null
 }
 
 /** PostgREST espera las columnas PostGIS como GeoJSON. */
@@ -25,24 +45,31 @@ function toGeoJson(point: GeoPoint) {
   return { type: 'Point', coordinates: [point.lng, point.lat] }
 }
 
-export async function getIncidents(): Promise<Incident[]> {
+export async function getIncidents(organizationId?: string | null): Promise<Incident[]> {
   const supabase = getSupabase()
-  const { data, error } = await supabase
+  let query = supabase
     .from('incidents')
     .select(INCIDENT_SELECT)
     .order('created_at', { ascending: false })
+  if (organizationId) query = query.eq('organization_id', organizationId)
+  const { data, error } = await query
   if (error) throw error
   return (data ?? []).map((r) => mapIncident(r as never))
 }
 
 /** Incidencias de un solo tipo (capa de la cola de seguridad o de TI). */
-export async function getIncidentsByType(type: IncidentInput['type']): Promise<Incident[]> {
+export async function getIncidentsByType(
+  type: IncidentInput['type'],
+  organizationId?: string | null
+): Promise<Incident[]> {
   const supabase = getSupabase()
-  const { data, error } = await supabase
+  let query = supabase
     .from('incidents')
     .select(INCIDENT_SELECT)
     .eq('type', type)
     .order('created_at', { ascending: false })
+  if (organizationId) query = query.eq('organization_id', organizationId)
+  const { data, error } = await query
   if (error) throw error
   return (data ?? []).map((r) => mapIncident(r as never))
 }
@@ -91,8 +118,12 @@ export async function createIncident(
 /** Sube una foto al bucket de Storage y devuelve su URL pública. */
 export async function uploadIncidentPhoto(file: File): Promise<string> {
   const supabase = getSupabase()
+  const organizationId = await currentOrganizationId()
+  if (!organizationId) {
+    throw new Error('Tu usuario no tiene una universidad asignada para subir fotos.')
+  }
   const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
-  const path = `${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${ext}`
+  const path = `${organizationId}/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}.${ext}`
   const { error } = await supabase.storage.from(PHOTO_BUCKET).upload(path, file, {
     cacheControl: '3600',
     upsert: false,

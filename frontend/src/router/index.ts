@@ -11,6 +11,10 @@ import NotificationsView from '@/views/NotificationsView.vue'
 import SettingsView from '@/views/SettingsView.vue'
 import MapView from '@/views/MapView.vue'
 import UsersView from '@/views/admin/UsersView.vue'
+import AuditLogsView from '@/views/AuditLogsView.vue'
+import SuperadminDashboardView from '@/views/superadmin/SuperadminDashboardView.vue'
+import OrganizationsView from '@/views/superadmin/OrganizationsView.vue'
+import LicensesView from '@/views/superadmin/LicensesView.vue'
 import LoginView from '@/views/LoginView.vue'
 import InicioView from '@/views/usuario/InicioView.vue'
 import ReportarView from '@/views/usuario/ReportarView.vue'
@@ -22,7 +26,9 @@ import MapaSeguridadView from '@/views/seguridad/MapaSeguridadView.vue'
 import ColaTicketsView from '@/views/ti/ColaTicketsView.vue'
 import DetalleTicketView from '@/views/ti/DetalleTicketView.vue'
 
+const SUPERADMIN: Role[] = ['superadmin']
 const ADMIN: Role[] = ['admin']
+const ADMIN_AUDIT: Role[] = ['admin', 'superadmin']
 const SEGURIDAD: Role[] = ['seguridad']
 const TI: Role[] = ['ti']
 const USUARIO: Role[] = ['usuario']
@@ -36,6 +42,32 @@ const router = createRouter({
 
     // ---- Login (única pantalla de acceso para todos los roles) ----
     { path: '/login', name: 'login', component: LoginView, meta: { public: true } },
+
+    // ---- Panel global del superadmin ----
+    {
+      path: '/superadmin',
+      name: 'superadmin-dashboard',
+      component: SuperadminDashboardView,
+      meta: { roles: SUPERADMIN },
+    },
+    {
+      path: '/superadmin/universidades',
+      name: 'superadmin-organizations',
+      component: OrganizationsView,
+      meta: { roles: SUPERADMIN },
+    },
+    {
+      path: '/superadmin/licencias',
+      name: 'superadmin-licenses',
+      component: LicensesView,
+      meta: { roles: SUPERADMIN },
+    },
+    {
+      path: '/auditoria',
+      name: 'audit',
+      component: AuditLogsView,
+      meta: { roles: ADMIN_AUDIT },
+    },
 
     // ---- Vistas de administración ----
     { path: '/dashboard', name: 'dashboard', component: DashboardView, meta: { roles: ADMIN } },

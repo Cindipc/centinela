@@ -1,6 +1,6 @@
 import { getSupabase } from '../supabase/client'
 import { PROFILE_SELECT, mapProfile } from './mappers'
-import type { Profile, NewUserInput, DbProfileRow } from '../types'
+import type { Profile, NewUserInput, ProfileUpdateInput, DbProfileRow } from '../types'
 
 const CREATE_USER_FUNCTION = 'create-user'
 
@@ -24,6 +24,7 @@ export async function createUser(input: NewUserInput): Promise<Profile> {
       departmentId: input.departmentId ?? null,
       zoneId: input.zoneId ?? null,
       phone: input.phone ?? null,
+      organizationId: input.organizationId ?? null,
     },
     headers: { Authorization: `Bearer ${accessToken}` },
   })
@@ -38,14 +39,36 @@ export async function createUser(input: NewUserInput): Promise<Profile> {
 }
 
 /** Listado completo de perfiles (uso exclusivo de admin, filtrado por RLS). */
-export async function getProfiles(): Promise<Profile[]> {
+export async function getProfiles(organizationId?: string | null): Promise<Profile[]> {
   const supabase = getSupabase()
+  let query = supabase.from('profiles').select(PROFILE_SELECT).order('full_name')
+  if (organizationId) query = query.eq('organization_id', organizationId)
+  const { data, error } = await query
+  if (error) throw error
+  return (data ?? []).map((r) => mapProfile(r as unknown as DbProfileRow))
+}
+
+/** Edición de perfil dentro de la propia universidad (RLS + triggers validan). */
+export async function updateProfile(id: string, patch: ProfileUpdateInput): Promise<Profile> {
+  if (patch.role === 'superadmin') {
+    throw new Error('El rol superadmin solo se asigna manualmente en la base de datos.')
+  }
+  const supabase = getSupabase()
+  const dbPatch: Record<string, unknown> = {}
+  if (patch.fullName !== undefined) dbPatch.full_name = patch.fullName
+  if (patch.role !== undefined) dbPatch.role = patch.role
+  if (patch.departmentId !== undefined) dbPatch.department_id = patch.departmentId
+  if (patch.zoneId !== undefined) dbPatch.zone_id = patch.zoneId
+  if (patch.phone !== undefined) dbPatch.phone = patch.phone
+
   const { data, error } = await supabase
     .from('profiles')
+    .update(dbPatch)
+    .eq('id', id)
     .select(PROFILE_SELECT)
-    .order('full_name')
+    .single()
   if (error) throw error
-  return (data ?? []).map((r) => mapProfile(r as DbProfileRow))
+  return mapProfile(data as unknown as DbProfileRow)
 }
 
 async function readFunctionError(

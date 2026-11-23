@@ -1,29 +1,44 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import { useCampusMap, type CampusMapController, type EditableZone } from '@/composables/useCampusMap'
+import { useLeafletCampusMap } from '@/composables/useLeafletCampusMap'
 import { useTheme } from '@/composables/useTheme'
 import {
   countOpenByZone,
   incidentsToGeoJson,
   isUsablePoint,
+  riskZonesToGeoJson,
   zonesToGeoJson,
   activePanicsWithCoords,
   type MapFeatureCollection,
 } from '@backend/utils/mapGeo'
 import type { LayerVisibility } from '@backend/config/map'
-import type { GeoPoint, Incident, PanicAlert, Zone } from '@backend/types'
+import type { GeoPoint, Incident, PanicAlert, RiskZone, Zone } from '@backend/types'
 
-const props = defineProps<{
-  incidents: Incident[]
-  zones: Zone[]
-  panics: PanicAlert[]
-  satellite: boolean
-  visibility: LayerVisibility
-  /** Modo "Reportar aquí": el clic en el mapa emite el punto en vez de seleccionar. */
-  picking: boolean
-  /** Modo edición de zonas (admin): marcadores arrastrables por zona. */
-  zoneEditing: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    incidents: Incident[]
+    zones: Zone[]
+    panics: PanicAlert[]
+    satellite: boolean
+    visibility: LayerVisibility
+    /** Modo "Reportar aquí": el clic en el mapa emite el punto en vez de seleccionar. */
+    picking: boolean
+    /** Modo edición de zonas (admin): marcadores arrastrables por zona. */
+    zoneEditing: boolean
+    /** Centro de la universidad activa. */
+    center?: GeoPoint | null
+    /** Zonas de riesgo calculadas por la IA. */
+    riskZones?: RiskZone[]
+    /** Capa de zonas de riesgo visible. */
+    showRiskZones?: boolean
+  }>(),
+  {
+    center: null,
+    riskZones: () => [],
+    showRiskZones: true,
+  }
+)
 
 const emit = defineEmits<{
   (e: 'select-incident', id: string): void
@@ -35,7 +50,8 @@ const emit = defineEmits<{
 const { theme } = useTheme()
 
 const token = (import.meta.env.VITE_MAPBOX_TOKEN as string | undefined) ?? ''
-const hasToken = computed(() => token.trim().length > 0)
+/** Solo tokens públicos de Mapbox válidos; si falta, se usa Leaflet/OSM. */
+const hasMapboxToken = computed(() => /^pk\.[A-Za-z0-9._-]{20,}$/.test(token.trim()))
 
 const container = ref<HTMLElement | null>(null)
 const controller = shallowRef<CampusMapController | null>(null)
@@ -44,6 +60,7 @@ const zonesGeo = computed<MapFeatureCollection>(() =>
   zonesToGeoJson(props.zones, countOpenByZone(props.incidents))
 )
 const incidentsGeo = computed<MapFeatureCollection>(() => incidentsToGeoJson(props.incidents))
+const riskZonesGeo = computed<MapFeatureCollection>(() => riskZonesToGeoJson(props.riskZones))
 const panicsVisible = computed<PanicAlert[]>(() => activePanicsWithCoords(props.panics))
 
 const editableZones = computed<EditableZone[]>(() =>
@@ -57,6 +74,8 @@ function syncData(): void {
   if (!current) return
   current.setZones(zonesGeo.value)
   current.setIncidents(incidentsGeo.value)
+  current.setRiskZones(riskZonesGeo.value)
+  current.setRiskZonesVisible(props.showRiskZones)
   current.setPanics(panicsVisible.value)
   current.setVisibility(props.visibility)
   current.setBaseStyle(props.satellite)
@@ -65,15 +84,18 @@ function syncData(): void {
 }
 
 onMounted(() => {
-  if (!hasToken.value || !container.value) return
-  const instance = useCampusMap({
-    token,
+  if (!container.value) return
+  const shared = {
     container: container.value,
+    center: props.center,
     theme: theme.value,
-    onIncidentClick: (id) => emit('select-incident', id),
-    onPickPoint: (point) => emit('pick-point', point),
-    onZoneMove: (zoneId, point) => emit('zone-move', zoneId, point),
-  })
+    onIncidentClick: (id: string) => emit('select-incident', id),
+    onPickPoint: (point: GeoPoint) => emit('pick-point', point),
+    onZoneMove: (zoneId: string, point: GeoPoint) => emit('zone-move', zoneId, point),
+  }
+  const instance = hasMapboxToken.value
+    ? useCampusMap({ ...shared, token: token.trim() })
+    : useLeafletCampusMap(shared)
   controller.value = instance
   syncData()
   watch(
@@ -89,6 +111,11 @@ onMounted(() => {
 
 watch(zonesGeo, (value) => controller.value?.setZones(value))
 watch(incidentsGeo, (value) => controller.value?.setIncidents(value))
+watch(riskZonesGeo, (value) => controller.value?.setRiskZones(value))
+watch(
+  () => props.showRiskZones,
+  (value) => controller.value?.setRiskZonesVisible(value)
+)
 watch(panicsVisible, (value) => controller.value?.setPanics(value))
 watch(
   () => props.visibility,
@@ -125,29 +152,29 @@ defineExpose({
 
 <template>
   <div class="map-canvas">
-    <!-- Sin token: estado claro y accionable, sin renderizar el mapa. -->
-    <div v-if="!hasToken" class="map-canvas__state card">
-      <h3>Mapa sin configurar</h3>
-      <p class="text-muted">
-        Define <code>VITE_MAPBOX_TOKEN</code> en <code>frontend/.env</code> (copia
-        <code>frontend/.env.example</code>) y restringe el token por URL en tu panel de Mapbox.
-        Reinicia el servidor de desarrollo después de guardar.
-      </p>
+    <div ref="container" class="map-canvas__map" data-testid="campus-map"></div>
+
+    <!-- Sin token de Mapbox el mapa real se muestra con Leaflet + OpenStreetMap. -->
+    <div v-if="!hasMapboxToken" class="map-canvas__banner" role="status">
+      <strong>Modo local · OpenStreetMap</strong>
+      <span>
+        Añade <code>VITE_MAPBOX_TOKEN</code> en <code>frontend/.env</code> para usar Mapbox
+        (satélite y edificios 3D).
+      </span>
     </div>
 
-    <template v-else>
-      <div ref="container" class="map-canvas__map" data-testid="campus-map"></div>
+    <div v-if="hasMapboxToken && controller?.error.value" class="map-canvas__state card" role="alert">
+      <h3>No se pudo cargar Mapbox</h3>
+      <p class="text-muted">{{ controller.error.value }}</p>
+    </div>
 
-      <div v-if="controller?.error.value" class="map-canvas__state card" role="alert">
-        <h3>No se pudo cargar el mapa</h3>
-        <p class="text-muted">{{ controller.error.value }}</p>
-      </div>
-
-      <div v-else-if="controller && !controller.ready.value" class="map-canvas__state card">
-        <h3>Cargando mapa…</h3>
-        <p class="text-muted">Preparando capas del campus.</p>
-      </div>
-    </template>
+    <div
+      v-else-if="hasMapboxToken && controller && !controller.ready.value"
+      class="map-canvas__state card"
+    >
+      <h3>Cargando mapa…</h3>
+      <p class="text-muted">Preparando capas del campus.</p>
+    </div>
   </div>
 </template>
 
@@ -167,6 +194,30 @@ defineExpose({
 .map-canvas__map {
   position: absolute;
   inset: 0;
+  z-index: 1;
+}
+
+.map-canvas__banner {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  max-width: min(480px, calc(100% - 20px));
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: var(--panel-solid, rgba(3, 18, 25, 0.9));
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 11px;
+  box-shadow: var(--shadow-card);
+}
+
+.map-canvas__banner strong {
+  color: var(--accent);
 }
 
 .map-canvas__state {

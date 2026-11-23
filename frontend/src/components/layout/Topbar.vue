@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '@/composables/useAuth'
 import { useTheme } from '@/composables/useTheme'
+import { ROLE_LABELS } from '@/navigation/roleNav'
 
 const { user, signOut } = useAuth()
 const router = useRouter()
@@ -29,7 +30,10 @@ async function handleLogout() {
 <template>
   <header class="topbar">
     <div class="topbar__right">
-      <div class="topbar__role text-muted">{{ user?.role ?? '' }}</div>
+      <div class="topbar__scope text-muted">
+        <span>{{ user?.organizationName ?? 'Plataforma global' }}</span>
+        <span class="topbar__role">{{ user?.role ? ROLE_LABELS[user.role] : '' }}</span>
+      </div>
       <span class="topbar__clock">{{ currentTime }}</span>
       <button
         class="topbar__theme"
@@ -73,9 +77,18 @@ async function handleLogout() {
   gap: 16px;
 }
 
+.topbar__scope {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  font-size: 12px;
+}
+
 .topbar__role {
   text-transform: capitalize;
-  font-size: 13px;
+  font-size: 11px;
+  color: var(--accent);
 }
 
 .topbar__clock {

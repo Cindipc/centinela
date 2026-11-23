@@ -1,0 +1,14 @@
+from __future__ import annotations
+
+import uvicorn
+
+from app.config import get_settings
+
+if __name__ == "__main__":
+    settings = get_settings()
+    uvicorn.run(
+        "app.main:app",
+        host=settings.ai_host,
+        port=settings.ai_port,
+        reload=True,
+    )

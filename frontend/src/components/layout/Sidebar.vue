@@ -38,6 +38,7 @@ const unread = computed(() => notificationsStore.unreadCount)
 
     <div class="sidebar__footer">
       <div v-if="user" class="sidebar__role">{{ ROLE_LABELS[user.role] }}</div>
+      <div v-if="user?.organizationName" class="sidebar__org">{{ user.organizationName }}</div>
       <div class="sidebar__status">
         <span class="sidebar__pulse"></span>
         Sistema en línea
@@ -139,6 +140,14 @@ const unread = computed(() => notificationsStore.unreadCount)
   font-size: 12px;
   font-weight: 600;
   color: var(--accent);
+}
+
+.sidebar__org {
+  font-size: 11px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .sidebar__status {

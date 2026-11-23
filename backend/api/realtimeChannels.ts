@@ -6,14 +6,20 @@ export type Unsubscribe = () => void
 
 export function subscribeToIncidents(
   onInsert: (incident: Incident) => void,
-  onUpdate?: (incident: Incident) => void
+  onUpdate?: (incident: Incident) => void,
+  organizationId?: string | null
 ): Unsubscribe {
   const supabase = getSupabase()
   const channel = supabase
-    .channel('incidents-changes')
+    .channel(`incidents-changes:${organizationId ?? 'global'}`)
     .on(
       'postgres_changes',
-      { event: '*', schema: 'public', table: 'incidents' },
+      {
+        event: '*',
+        schema: 'public',
+        table: 'incidents',
+        ...(organizationId ? { filter: `organization_id=eq.${organizationId}` } : {}),
+      },
       (payload) => {
         const mapped = mapIncident(payload.new as never)
         if (payload.eventType === 'INSERT') onInsert(mapped)
@@ -28,14 +34,20 @@ export function subscribeToIncidents(
 
 /** Alertas de pánico en vivo (INSERT y UPDATE de estado). RLS limita lo que llega. */
 export function subscribeToPanics(
-  onChange: (alert: PanicAlert, eventType: 'INSERT' | 'UPDATE') => void
+  onChange: (alert: PanicAlert, eventType: 'INSERT' | 'UPDATE') => void,
+  organizationId?: string | null
 ): Unsubscribe {
   const supabase = getSupabase()
   const channel = supabase
-    .channel('panic-changes')
+    .channel(`panic-changes:${organizationId ?? 'global'}`)
     .on(
       'postgres_changes',
-      { event: '*', schema: 'public', table: 'panic_alerts' },
+      {
+        event: '*',
+        schema: 'public',
+        table: 'panic_alerts',
+        ...(organizationId ? { filter: `organization_id=eq.${organizationId}` } : {}),
+      },
       (payload) => {
         if (payload.eventType !== 'INSERT' && payload.eventType !== 'UPDATE') return
         onChange(mapPanicAlert(payload.new as never), payload.eventType)
@@ -47,13 +59,21 @@ export function subscribeToPanics(
   }
 }
 
-export function subscribeToNotifications(onNotification: (notification: Notification) => void): Unsubscribe {
+export function subscribeToNotifications(
+  userId: string,
+  onNotification: (notification: Notification) => void
+): Unsubscribe {
   const supabase = getSupabase()
   const channel = supabase
-    .channel('notifications-changes')
+    .channel(`notifications-changes:${userId}`)
     .on(
       'postgres_changes',
-      { event: 'INSERT', schema: 'public', table: 'notifications' },
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'notifications',
+        filter: `user_id=eq.${userId}`,
+      },
       (payload) => {
         onNotification(mapNotification(payload.new as never))
       }
@@ -64,13 +84,21 @@ export function subscribeToNotifications(onNotification: (notification: Notifica
   }
 }
 
-export function subscribeToEquipment(onChange: () => void): Unsubscribe {
+export function subscribeToEquipment(
+  onChange: () => void,
+  organizationId?: string | null
+): Unsubscribe {
   const supabase = getSupabase()
   const channel = supabase
-    .channel('equipment-changes')
+    .channel(`equipment-changes:${organizationId ?? 'global'}`)
     .on(
       'postgres_changes',
-      { event: '*', schema: 'public', table: 'equipment' },
+      {
+        event: '*',
+        schema: 'public',
+        table: 'equipment',
+        ...(organizationId ? { filter: `organization_id=eq.${organizationId}` } : {}),
+      },
       () => {
         onChange()
       }

@@ -27,7 +27,8 @@ const incidentsStore = useIncidentsStore()
 const emergencyStore = useEmergencyStore()
 const mapStore = useMapStore()
 const { isAdmin, isSecurity, isTecnology, isEmployee } = useRole()
-const { user } = useAuth()
+const { user, organizationCenter } = useAuth()
+const campusCenter = computed(() => organizationCenter.value ?? CAMPUS_CENTER)
 const route = useRoute()
 const router = useRouter()
 
@@ -258,7 +259,7 @@ function cancelPicking(): void {
 
 function onPickPoint(point: GeoPoint): void {
   picking.value = false
-  const distance = distanceMeters(CAMPUS_CENTER, point)
+  const distance = distanceMeters(campusCenter.value, point)
   if (
     distance > 2000 &&
     !window.confirm(
@@ -440,6 +441,7 @@ async function saveZoneChanges(): Promise<void> {
           :visibility="visibility"
           :picking="picking"
           :zone-editing="zoneEditing"
+          :center="campusCenter"
           @select-incident="onSelectIncident"
           @pick-point="onPickPoint"
           @zone-move="onZoneMove"

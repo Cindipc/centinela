@@ -7,7 +7,7 @@ async function profileFor(uid: string, email: string): Promise<Profile> {
   const { data, error } = await supabase.from('profiles').select(PROFILE_SELECT).eq('id', uid).maybeSingle()
   if (error) throw error
   if (!data) throw new Error('Perfil no encontrado en la base de datos.')
-  return mapProfile(data as DbProfileRow, email)
+  return mapProfile(data as unknown as DbProfileRow, email)
 }
 
 export async function login(email: string, password: string): Promise<Profile> {

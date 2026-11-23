@@ -17,6 +17,7 @@ import {
   MAP_SOURCES,
   MAPBOX_STYLES,
   PANIC_COLOR,
+  RISK_COLORS,
   ZONE_COLOR,
   ZONE_STROKE_COLOR,
   type LayerVisibility,
@@ -34,6 +35,8 @@ import 'mapbox-gl/dist/mapbox-gl.css'
 export interface CampusMapOptions {
   token: string
   container: HTMLElement
+  /** Centro de la universidad; si no se indica, se usa el centro por defecto. */
+  center?: GeoPoint | null
   /** Tema de la app: define el estilo base (oscuro/claro) salvo que se pida satélite. */
   theme: 'dark' | 'light'
   onIncidentClick?: (incidentId: string) => void
@@ -57,6 +60,8 @@ export interface CampusMapController {
   setBaseStyle: (satellite: boolean) => void
   setZones: (data: MapFeatureCollection) => void
   setIncidents: (data: MapFeatureCollection) => void
+  setRiskZones: (data: MapFeatureCollection) => void
+  setRiskZonesVisible: (visible: boolean) => void
   setPanics: (panics: PanicAlert[]) => void
   setVisibility: (visibility: LayerVisibility) => void
   fitToZones: () => void
@@ -90,11 +95,15 @@ export function useCampusMap(options: CampusMapOptions): CampusMapController {
   const reducedMotion = prefersReducedMotion()
 
   let satellite = false
+  const center = options.center ?? CAMPUS_CENTER
   let visibility: LayerVisibility = { ...EMPTY_VISIBILITY }
   let lastZones: MapFeatureCollection = EMPTY_FEATURE_COLLECTION
   let lastIncidents: MapFeatureCollection = EMPTY_FEATURE_COLLECTION
+  let lastRiskZones: MapFeatureCollection = EMPTY_FEATURE_COLLECTION
+  let riskZonesVisible = true
   let lastPanics: PanicAlert[] = []
   const panicMarkers = new Map<string, mapboxgl.Marker>()
+  let resizeObserver: ResizeObserver | null = null
 
   let picking = false
   let zoneEditing = false
@@ -141,6 +150,84 @@ export function useCampusMap(options: CampusMapOptions): CampusMapController {
           'text-halo-width': 1.4,
         },
       })
+    }
+
+    if (!target.getSource(MAP_SOURCES.riskZones)) {
+      target.addSource(MAP_SOURCES.riskZones, { type: 'geojson', data: lastRiskZones })
+      target.addLayer(
+        {
+          id: MAP_LAYERS.riskFill,
+          type: 'fill',
+          source: MAP_SOURCES.riskZones,
+          layout: { visibility: riskZonesVisible ? 'visible' : 'none' },
+          paint: {
+            'fill-color': [
+              'match',
+              ['get', 'riskLevel'],
+              'critical',
+              RISK_COLORS.critical,
+              'high',
+              RISK_COLORS.high,
+              'medium',
+              RISK_COLORS.medium,
+              RISK_COLORS.low,
+            ],
+            'fill-opacity': 0.22,
+          },
+        },
+        MAP_LAYERS.zonesCircle
+      )
+      target.addLayer(
+        {
+          id: MAP_LAYERS.riskOutline,
+          type: 'line',
+          source: MAP_SOURCES.riskZones,
+          layout: { visibility: riskZonesVisible ? 'visible' : 'none' },
+          paint: {
+            'line-color': [
+              'match',
+              ['get', 'riskLevel'],
+              'critical',
+              RISK_COLORS.critical,
+              'high',
+              RISK_COLORS.high,
+              'medium',
+              RISK_COLORS.medium,
+              RISK_COLORS.low,
+            ],
+            'line-width': 1.6,
+            'line-opacity': 0.85,
+            'line-dasharray': [2, 1.2],
+          },
+        },
+        MAP_LAYERS.zonesCircle
+      )
+      target.addLayer(
+        {
+          id: MAP_LAYERS.riskLabel,
+          type: 'symbol',
+          source: MAP_SOURCES.riskZones,
+          layout: {
+            visibility: riskZonesVisible ? 'visible' : 'none',
+            'text-field': [
+              'concat',
+              ['coalesce', ['get', 'label'], 'Riesgo'],
+              '\n',
+              ['to-string', ['get', 'incidentCount']],
+              ' reportes',
+            ],
+            'text-size': 10,
+            'text-anchor': 'center',
+            'text-font': ['DIN Offc Pro Medium', 'Arial Unicode MS Regular'],
+          },
+          paint: {
+            'text-color': options.theme === 'light' ? '#0d2530' : '#fff4f6',
+            'text-halo-color': options.theme === 'light' ? 'rgba(255,255,255,0.92)' : 'rgba(3, 18, 25, 0.92)',
+            'text-halo-width': 1.2,
+          },
+        },
+        MAP_LAYERS.zonesCircle
+      )
     }
 
     if (!target.getSource(MAP_SOURCES.incidents)) {
@@ -274,6 +361,9 @@ export function useCampusMap(options: CampusMapOptions): CampusMapController {
     setLayerVisibility(target, MAP_LAYERS.incClusterCount, visibility.incidents)
     setLayerVisibility(target, MAP_LAYERS.incPoints, visibility.incidents)
     setLayerVisibility(target, MAP_LAYERS.incHeatmap, visibility.heat && visibility.incidents)
+    setLayerVisibility(target, MAP_LAYERS.riskFill, riskZonesVisible)
+    setLayerVisibility(target, MAP_LAYERS.riskOutline, riskZonesVisible)
+    setLayerVisibility(target, MAP_LAYERS.riskLabel, riskZonesVisible)
   }
 
   function applyPanics(): void {
@@ -379,8 +469,8 @@ export function useCampusMap(options: CampusMapOptions): CampusMapController {
     const instance = new mapboxgl.Map({
       container: options.container,
       style: baseStyleUrl(),
-      center: [CAMPUS_CENTER.lng, CAMPUS_CENTER.lat],
-      zoom: DEFAULT_ZOOM,
+        center: [center.lng, center.lat],
+        zoom: DEFAULT_ZOOM,
       pitch: DEFAULT_PITCH,
       maxPitch: 70,
     })
@@ -416,6 +506,13 @@ export function useCampusMap(options: CampusMapOptions): CampusMapController {
     instance.on('click', handleMapClick)
     instance.on('mousemove', handleMouseMove)
     map.value = instance
+
+    // El contenedor puede cambiar de tamaño (sidebar, viewport o pestaña oculta).
+    requestAnimationFrame(() => instance.resize())
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => instance.resize())
+      resizeObserver.observe(options.container)
+    }
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : 'No se pudo inicializar el mapa.'
   }
@@ -449,6 +546,16 @@ export function useCampusMap(options: CampusMapOptions): CampusMapController {
     setData(MAP_SOURCES.incidents, data)
   }
 
+  function setRiskZones(data: MapFeatureCollection): void {
+    lastRiskZones = data
+    setData(MAP_SOURCES.riskZones, data)
+  }
+
+  function setRiskZonesVisible(visible: boolean): void {
+    riskZonesVisible = visible
+    applyVisibility()
+  }
+
   function setPanics(panics: PanicAlert[]): void {
     lastPanics = panics
     applyPanics()
@@ -464,12 +571,13 @@ export function useCampusMap(options: CampusMapOptions): CampusMapController {
     if (!target) return
     const points: GeoPoint[] = []
     for (const item of lastZones.features) {
+      if (item.geometry.type !== 'Point') continue
       const [lng, lat] = item.geometry.coordinates
       points.push({ lat, lng })
     }
     if (points.length === 0) {
       target.easeTo({
-        center: [CAMPUS_CENTER.lng, CAMPUS_CENTER.lat],
+      center: [center.lng, center.lat],
         zoom: DEFAULT_ZOOM,
         duration: reducedMotion ? 0 : 700,
       })
@@ -532,6 +640,8 @@ export function useCampusMap(options: CampusMapOptions): CampusMapController {
   }
 
   function destroy(): void {
+    resizeObserver?.disconnect()
+    resizeObserver = null
     clearZoneEditMarkers()
     for (const marker of panicMarkers.values()) marker.remove()
     panicMarkers.clear()
@@ -546,6 +656,8 @@ export function useCampusMap(options: CampusMapOptions): CampusMapController {
     setBaseStyle,
     setZones,
     setIncidents,
+    setRiskZones,
+    setRiskZonesVisible,
     setPanics,
     setVisibility,
     fitToZones,

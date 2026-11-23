@@ -4,16 +4,21 @@
 // de Supabase y que trae coordenadas válidas.
 // =========================================================
 import { PRIORITY_COLORS } from '../config/map'
-import type { GeoPoint, Incident, PanicAlert, Zone } from '../types'
+import type { GeoPoint, Incident, PanicAlert, RiskZone, Zone } from '../types'
 
 export interface MapPointGeometry {
   type: 'Point'
   coordinates: [number, number] // [lng, lat]
 }
 
+export interface MapPolygonGeometry {
+  type: 'Polygon'
+  coordinates: [number, number][][]
+}
+
 export interface MapFeature {
   type: 'Feature'
-  geometry: MapPointGeometry
+  geometry: MapPointGeometry | MapPolygonGeometry
   properties: Record<string, string | number | boolean | null>
 }
 
@@ -92,6 +97,57 @@ export function zonesToGeoJson(
         openCount: openCountByZone[z.id] ?? 0,
       })
     )
+  return { type: 'FeatureCollection', features }
+}
+
+/** Punto destino a `distanceM` metros y rumbo `bearing` grados desde `origin`. */
+export function destinationPoint(origin: GeoPoint, bearing: number, distanceM: number): GeoPoint {
+  const radius = 6371000
+  const angular = distanceM / radius
+  const bearingRad = (bearing * Math.PI) / 180
+  const lat1 = (origin.lat * Math.PI) / 180
+  const lng1 = (origin.lng * Math.PI) / 180
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(angular) + Math.cos(lat1) * Math.sin(angular) * Math.cos(bearingRad)
+  )
+  const lng2 =
+    lng1 +
+    Math.atan2(
+      Math.sin(bearingRad) * Math.sin(angular) * Math.cos(lat1),
+      Math.cos(angular) - Math.sin(lat1) * Math.sin(lat2)
+    )
+  return { lat: (lat2 * 180) / Math.PI, lng: (((lng2 * 180) / Math.PI + 540) % 360) - 180 }
+}
+
+/** Polígono aproximado (48 vértices) para una zona de riesgo circular. */
+export function circlePolygon(center: GeoPoint, radiusM: number, steps = 48): MapPolygonGeometry {
+  const ring: [number, number][] = []
+  for (let index = 0; index <= steps; index += 1) {
+    const point = destinationPoint(center, (index * 360) / steps, radiusM)
+    ring.push(toLngLat(point))
+  }
+  return { type: 'Polygon', coordinates: [ring] }
+}
+
+/** Zonas de riesgo de la IA → GeoJSON de polígonos con metadatos para el mapa. */
+export function riskZonesToGeoJson(zones: RiskZone[]): MapFeatureCollection {
+  const features = zones
+    .filter((zone) => isUsablePoint(zone.center) && Number.isFinite(zone.radiusM) && zone.radiusM > 0)
+    .map<MapFeature>((zone) => ({
+      type: 'Feature',
+      geometry: circlePolygon(zone.center, Math.max(30, Math.min(zone.radiusM, 2500))),
+      properties: {
+        id: zone.id,
+        label: zone.label,
+        zone: zone.zone,
+        incidentCount: zone.incidentCount,
+        riskLevel: zone.riskLevel,
+        score: zone.score,
+        dominantType: zone.dominantType,
+        peakHour: zone.peakHour,
+        radiusM: zone.radiusM,
+      },
+    }))
   return { type: 'FeatureCollection', features }
 }
 

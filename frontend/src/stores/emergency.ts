@@ -94,6 +94,7 @@ export const useEmergencyStore = defineStore('emergency', () => {
   /** Realtime de panic_alerts: INSERT agrega (y avisa), UPDATE sincroniza el estado. */
   function listenPanics(onInsert?: (alert: PanicAlert) => void) {
     if (unsubscribePanics) return
+    const organizationId = useAuthStore().user?.organizationId ?? null
     unsubscribePanics = subscribeToPanics((alert, eventType) => {
       const index = panicAlerts.value.findIndex((p) => p.id === alert.id)
       if (eventType === 'INSERT' && index === -1) {
@@ -102,7 +103,7 @@ export const useEmergencyStore = defineStore('emergency', () => {
       } else if (index !== -1) {
         panicAlerts.value[index] = alert
       }
-    })
+    }, organizationId)
   }
 
   function stopPanics() {

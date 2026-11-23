@@ -17,6 +17,7 @@ export interface NavItem {
 
 /** Destino al que se redirige tras iniciar sesión, según el rol del perfil. */
 export const HOME_PATH_BY_ROLE: Record<Role, string> = {
+  superadmin: '/superadmin',
   admin: '/dashboard',
   seguridad: '/seguridad/cola',
   ti: '/ti/tickets',
@@ -24,6 +25,7 @@ export const HOME_PATH_BY_ROLE: Record<Role, string> = {
 }
 
 export const ROLE_LABELS: Record<Role, string> = {
+  superadmin: 'Superadmin',
   admin: 'Administrador',
   seguridad: 'Seguridad',
   ti: 'TI',
@@ -31,6 +33,13 @@ export const ROLE_LABELS: Record<Role, string> = {
 }
 
 const NAV: Record<Role, NavItem[]> = {
+  superadmin: [
+    { to: '/superadmin', label: 'Panel global' },
+    { to: '/superadmin/universidades', label: 'Universidades' },
+    { to: '/superadmin/licencias', label: 'Licencias' },
+    { to: '/auditoria', label: 'Auditoría' },
+    { to: '/mapa', label: 'Mapa global', mobile: false },
+  ],
   admin: [
     { to: '/dashboard', label: 'Panel' },
     { to: '/mapa', label: 'Mapa', mobile: false },
@@ -41,6 +50,7 @@ const NAV: Record<Role, NavItem[]> = {
     { to: '/notifications', label: 'Notificaciones' },
     { to: '/settings', label: 'Configuración' },
     { to: '/configuracion/usuarios', label: 'Usuarios', mobile: false },
+    { to: '/auditoria', label: 'Auditoría', mobile: false },
   ],
   seguridad: [
     { to: '/seguridad/cola', label: 'Cola' },

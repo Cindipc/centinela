@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { getNotifications, markAsRead, markAllAsRead } from '@backend/api/notificationsApi'
 import { subscribeToNotifications } from '@backend/api/realtimeChannels'
+import { useAuthStore } from './auth'
 import type { Notification } from '@backend/types'
 
 export const useNotificationsStore = defineStore('notifications', () => {
@@ -23,7 +24,9 @@ export const useNotificationsStore = defineStore('notifications', () => {
 
   function listenRealtime() {
     if (unsubscribe) return
-    unsubscribe = subscribeToNotifications((notification) => {
+    const userId = useAuthStore().user?.id
+    if (!userId) return
+    unsubscribe = subscribeToNotifications(userId, (notification) => {
       const exists = notifications.value.some((n) => n.id === notification.id)
       if (!exists) {
         notifications.value.unshift(notification)

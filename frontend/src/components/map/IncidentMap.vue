@@ -68,7 +68,7 @@ onMounted(async () => {
   if (!container.value) return
   mapbox = sdk.default
   mapbox.accessToken = token
-  const start: [number, number] = props.center ? [props.center.lng, props.center.lat] : [-77.029, -12.114]
+  const start: [number, number] = props.center ? [props.center.lng, props.center.lat] : [-90.0036, 20.5873]
   map = new mapbox.Map({
     container: container.value,
     style: MAP_STYLES[theme.value],

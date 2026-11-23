@@ -1,120 +1,127 @@
 # Centinela
 
-Tu entorno, bajo control.
+Centinela es una plataforma multiuniversidad para reportar, verificar y dar seguimiento a incidencias de seguridad y de equipo. El panel web funciona por universidad, con roles, licencias, auditoría y un asistente de IA opcional.
 
-Centinela es una PWA para gestionar incidencias dentro de una institución (campus, oficinas, etc). Junta dos cosas que normalmente andan dispersas: reportes de seguridad (persona sospechosa, accidente, acceso no autorizado) y tickets de equipo/infraestructura (laptop dañada, red caída, proyector sin imagen). Todo pasa por el mismo flujo: se reporta, se verifica, se asigna a quien corresponde, y se le da seguimiento hasta resolverlo.
+## Arquitectura
 
-## Por qué
-
-Hoy estos reportes se hacen por WhatsApp, correo o de boca en boca, sin verificación ni seguimiento real. Nadie sabe con certeza qué está pendiente ni quién lo está atendiendo.
-
-## Roles
-
-- **Usuario/empleado** — reporta incidencias, ve su historial, tiene botón de pánico
-- **Seguridad** — atiende incidentes de seguridad
-- **TI** — atiende tickets de equipo
-- **Admin** — ve todo desde el panel web (dashboard, mapa, inventario)
-
-## Stack
-
-- Backend/BD: Supabase (PostgreSQL + PostGIS + Auth + Realtime + Storage)
-- App móvil: Flutter
-- Panel web: Vue 3 + TypeScript
-- Mapas: Mapbox / Google Maps SDK
-- Push: Firebase Cloud Messaging
+- **Frontend:** Vue 3 + TypeScript + Vite + Pinia + Mapbox GL.
+- **Datos y auth:** Supabase (PostgreSQL, PostGIS, Auth, Realtime, Storage y Edge Functions).
+- **Capa de datos del frontend:** TypeScript en `backend/api`, `backend/types`, `backend/config` y `backend/utils`; se importa con el alias `@backend`. No es un servidor Node separado.
+- **IA:** servicio Python/FastAPI en `backend/ai_service`, con Ollama opcional, reglas de respaldo, scikit-learn y RPC de PostGIS.
+- **Superadmin:** rol global (`profiles.organization_id = null`) que administra universidades, licencias y auditoría.
 
 ## Estructura
 
-```
-centinela-web/    panel web (Vue 3 + TS)
-centinela-app/    app móvil (Flutter)
-database/         schema.sql para Supabase
+```text
+backend/                 APIs TypeScript compartidas y servicio de IA
+database/
+  schema.sql             esquema base
+  migrations/            001, 002 y 003 (multiuniversidad)
+frontend/                panel Vue 3
+supabase/functions/      Edge Function create-user
 ```
 
-### Frontend
+## Requisitos
 
-Entra a la carpeta del frontend e instala las dependencias:
+- Node.js 20+ y npm.
+- Proyecto de Supabase con PostGIS.
+- Python 3.12+ si se usará el servicio de IA.
+- Ollama opcional para clasificación con un modelo local.
+
+## 1. Base de datos
+
+En el SQL Editor de Supabase ejecuta, en este orden:
+
+1. `database/schema.sql`
+2. `database/migrations/001_fix_rls_recursion.sql`
+3. `database/migrations/002_roles_rbac.sql`
+4. `database/migrations/003_multi_tenant_licenses_audit.sql`
+
+La migración 003 crea la universidad inicial UTP, asigna los datos existentes y habilita RLS por organización. No la ejecutes sobre una base que ya la tenga aplicada sin revisar antes su idempotencia.
+
+### Primer superadmin
+
+1. Crea el usuario desde **Supabase → Authentication**.
+2. Asígnale el rol global:
+
+```sql
+update public.profiles
+set role = 'superadmin', organization_id = null
+where id = '<UUID_DEL_USUARIO>';
+```
+
+Después, ese usuario puede crear universidades y licencias desde `/superadmin`.
+
+## 2. Frontend
 
 ```bash
 cd frontend
-
 npm install
 ```
 
-Dependencias principales utilizadas:
+Copia `frontend/.env.example` a `frontend/.env` y completa:
 
-```bash
-npm install vue-router@4 pinia
-npm install mapbox-gl @types/mapbox-gl
-npm install tailwindcss @tailwindcss/vite
+```dotenv
+VITE_SUPABASE_URL=https://TU-PROYECTO.supabase.co
+VITE_SUPABASE_ANON_KEY=...
+VITE_MAPBOX_TOKEN=pk...
+VITE_AI_API_URL=http://127.0.0.1:8001
 ```
 
-Para iniciar el servidor de desarrollo:
+`VITE_AI_API_URL` es opcional: si está vacía, la interfaz oculta el asistente de IA. Restringe el token de Mapbox por dominio en su panel.
 
 ```bash
 npm run dev
+npm run typecheck
+npm run build
 ```
 
-### Backend
+## 3. Edge Function create-user
 
-Abre otra terminal y entra a la carpeta del backend:
+La creación de cuentas pasa por la función `create-user`, que valida al administrador, su universidad y la licencia. El service role nunca llega al navegador.
+
+Configura los secretos y despliega:
 
 ```bash
-cd backend
+supabase secrets set SUPABASE_ANON_KEY=... SUPABASE_SERVICE_ROLE_KEY=...
+supabase functions deploy create-user
 ```
 
-Instala las dependencias:
+También se acepta `SUPABASE_SECRET_KEY` para proyectos con claves nuevas. Revisa `supabase/functions/.env.example`.
+
+## 4. Servicio de IA opcional
 
 ```bash
-npm install
+cd backend/ai_service
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+copy .env.example .env
+python run.py
 ```
 
-Si estás configurando el backend desde cero:
+En Linux/macOS usa `source .venv/bin/activate` y `cp .env.example .env`.
+
+Configura en `backend/ai_service/.env`:
+
+- `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY`.
+- `SUPABASE_JWT_SECRET` (HS256) o `SUPABASE_JWKS_URL` (claves asimétricas).
+- `OLLAMA_URL` y `OLLAMA_MODEL`; opcionalmente `OLLAMA_VISION_MODEL`.
+- `CORS_ORIGINS` con la URL del frontend.
+
+Endpoints: `POST /ai/suggest`, `/ai/duplicates`, `/ai/patterns`, `/ai/hotspots` y `/ai/image`, además de `GET /health`. Si Ollama no está disponible, se usan reglas locales para clasificación; la IA nunca cierra ni modifica incidencias automáticamente.
+
+Pruebas:
 
 ```bash
-npm init -y
-npm install @supabase/supabase-js
-npm install -D typescript
+cd backend/ai_service
+python -m pytest -q
 ```
 
-Para iniciar el backend, utiliza el script definido en `package.json`.
+## Seguridad
 
-### Variables de entorno
-
-Crea los archivos `.env` correspondientes a cada parte del proyecto y configura las credenciales necesarias para Supabase, Mapbox y los demás servicios utilizados.
-
-No subas archivos `.env` al repositorio. Estos deben estar incluidos en `.gitignore`.
-
-### Mapa del campus (Mapbox)
-
-1. Crea una cuenta en [Mapbox](https://account.mapbox.com/) y genera un **token público de URL** (`pk...`).
-2. **Restringe el token por URL/domains** en el panel de Mapbox (agrega tu dominio y `http://localhost:5173`). El token viaja al navegador por diseño; sin restricción, cualquiera podría gastar tu cuota.
-3. Copia `frontend/.env.example` a `frontend/.env` y llena `VITE_MAPBOX_TOKEN`.
-4. Reinicia `npm run dev`. Si el token falta o es inválido, el mapa muestra un estado claro con instrucciones.
-
-El mapa real está en `/mapa` (`frontend/src/views/MapView.vue`); usa capas GeoJSON con agrupación, mapa de calor y edificios 3D. El centro por defecto del campus se cambia en `backend/config/map.ts` (`CAMPUS_CENTER`).
-
-## Desarrollo
-
-Para trabajar en el proyecto necesitas ejecutar el frontend y el backend por separado.
-
-**Frontend:**
-
-```bash
-cd frontend
-npm run dev
-```
-
-**Backend:**
-
-```bash
-cd backend
-npm run dev
-```
-
-**Móvil**
-```bash
-cd centinela-app
-flutter pub get
-flutter run
-```
+- RLS filtra todas las operaciones por `organization_id`; el frontend no decide la universidad.
+- Los administradores solo gestionan su universidad. El rol `superadmin` se asigna manualmente en la base de datos.
+- Licencias vencidas o suspendidas bloquean nuevas operaciones sin borrar el historial.
+- El archivo `.env` de la raíz y los `.env` locales están fuera de Git. No compartas claves; rota cualquier secreto que se haya expuesto.
+- En producción, publica el servicio de IA detrás de HTTPS y limita su CORS. No lo expongas directamente a Internet sin autenticación.

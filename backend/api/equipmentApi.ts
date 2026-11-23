@@ -9,16 +9,23 @@ async function resolveProfileId(nameOrId?: string | null): Promise<string | null
   if (!nameOrId) return null
   if (UUID_RE.test(nameOrId)) return nameOrId
   const supabase = getSupabase()
-  const { data } = await supabase.from('profiles').select('id').eq('full_name', nameOrId).maybeSingle()
+  const { data } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('full_name', nameOrId)
+    .limit(1)
+    .maybeSingle()
   return data?.id ?? null
 }
 
-export async function getEquipment(): Promise<Equipment[]> {
+export async function getEquipment(organizationId?: string | null): Promise<Equipment[]> {
   const supabase = getSupabase()
-  const { data, error } = await supabase
+  let query = supabase
     .from('equipment')
     .select(EQUIPMENT_SELECT)
     .order('created_at', { ascending: false })
+  if (organizationId) query = query.eq('organization_id', organizationId)
+  const { data, error } = await query
   if (error) throw error
   return (data ?? []).map((r) => mapEquipment(r as never))
 }

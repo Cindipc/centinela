@@ -1,0 +1,15 @@
+server:
+  port: ${AI_JAVA_PORT:8003}
+
+spring:
+  application:
+    name: centinela-ai-java
+
+ai:
+  model-dir: ${AI_MODEL_DIR:models}
+  seed: ${AI_MODEL_SEED:42}
+
+logging:
+  level:
+    root: INFO
+    com.centinela.ai: INFO

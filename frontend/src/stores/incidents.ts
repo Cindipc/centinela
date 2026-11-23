@@ -52,6 +52,7 @@ export const useIncidentsStore = defineStore('incidents', () => {
   /** Realtime compartido: INSERT agrega, UPDATE reemplaza (estado, asignación, etc.). */
   function listenRealtime(onInsert?: (incident: Incident) => void) {
     if (unsubscribe) return
+    const organizationId = useAuthStore().user?.organizationId ?? null
     unsubscribe = subscribeToIncidents(
       (incident) => {
         const exists = incidents.value.some((i) => i.id === incident.id)
@@ -63,7 +64,8 @@ export const useIncidentsStore = defineStore('incidents', () => {
       (incident) => {
         const index = incidents.value.findIndex((i) => i.id === incident.id)
         if (index !== -1) incidents.value[index] = incident
-      }
+      },
+      organizationId
     )
   }
 

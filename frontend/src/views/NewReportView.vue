@@ -1,13 +1,23 @@
 <script setup lang="ts">
-import { reactive, ref, onMounted } from 'vue'
+import { computed, reactive, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useIncidentsStore } from '@/stores/incidents'
+import { useIncidentAi } from '@/composables/useIncidentAi'
 import type { IncidentInput } from '@backend/types'
 
 const router = useRouter()
 const store = useIncidentsStore()
 const sending = ref(false)
 const success = ref(false)
+const {
+  configured: aiConfigured,
+  analyzing: aiAnalyzing,
+  error: aiError,
+  suggestion: aiSuggestion,
+  duplicates: aiDuplicates,
+  analyze: analyzeWithAi,
+  reset: resetAi,
+} = useIncidentAi()
 
 const form = reactive<IncidentInput>({
   title: '',
@@ -22,6 +32,27 @@ const form = reactive<IncidentInput>({
 onMounted(() => {
   store.fetchReferences()
 })
+
+const selectedZoneId = computed(
+  () => store.zones.find((zone) => zone.name === form.zone)?.id ?? null
+)
+
+function runAi() {
+  resetAi()
+  void analyzeWithAi({
+    type: form.type,
+    title: form.title,
+    description: form.description,
+    zone: form.zone,
+    zoneId: selectedZoneId.value,
+  })
+}
+
+function applySuggestion() {
+  if (!aiSuggestion.value) return
+  form.category = aiSuggestion.value.category
+  form.priority = aiSuggestion.value.priority
+}
 
 async function submit() {
   sending.value = true
@@ -105,6 +136,43 @@ async function submit() {
         </div>
       </div>
 
+      <section v-if="aiConfigured" class="ai-panel">
+        <div class="ai-panel__head">
+          <div>
+            <strong>Asistente de IA</strong>
+            <p class="text-muted">Sugiere categoría y prioridad, y busca posibles duplicados.</p>
+          </div>
+          <button type="button" class="btn btn--ghost btn--small" :disabled="aiAnalyzing" @click="runAi">
+            {{ aiAnalyzing ? 'Analizando...' : 'Analizar reporte' }}
+          </button>
+        </div>
+        <p v-if="aiError" class="ai-panel__error">{{ aiError }}</p>
+
+        <div v-if="aiSuggestion" class="ai-panel__result">
+          <p>
+            <strong>{{ aiSuggestion.category }}</strong> · prioridad {{ aiSuggestion.priority }}
+            · {{ Math.round(aiSuggestion.confidence * 100) }}% confianza
+          </p>
+          <p class="text-muted">{{ aiSuggestion.summary }}</p>
+          <ul>
+            <li v-for="action in aiSuggestion.recommendedActions" :key="action">{{ action }}</li>
+          </ul>
+          <button type="button" class="btn btn--ghost btn--small" @click="applySuggestion">
+            Usar categoría y prioridad sugeridas
+          </button>
+        </div>
+
+        <div v-if="aiDuplicates?.likelyDuplicate" class="ai-panel__duplicates">
+          <strong>Posibles duplicados</strong>
+          <ul>
+            <li v-for="candidate in aiDuplicates.candidates" :key="candidate.incidentId">
+              {{ candidate.code }} · {{ candidate.title }} ({{ Math.round(candidate.similarity * 100) }}%)
+            </li>
+          </ul>
+          <p class="text-muted">Revisa antes de registrar; puedes continuar si es distinto.</p>
+        </div>
+      </section>
+
       <footer class="form__foot">
         <button type="button" class="btn btn--ghost" @click="router.back()">Cancelar</button>
         <button type="submit" class="btn" :disabled="sending">
@@ -175,6 +243,59 @@ async function submit() {
   padding: 12px 14px;
   border-radius: 10px;
   font-size: 14px;
+}
+
+.ai-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--bg-raised);
+}
+
+.ai-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ai-panel__head p {
+  margin: 2px 0 0;
+  font-size: 12px;
+}
+
+.ai-panel__result,
+.ai-panel__duplicates {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.ai-panel__result p,
+.ai-panel__duplicates p {
+  margin: 0;
+}
+
+.ai-panel__result ul,
+.ai-panel__duplicates ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.ai-panel__error {
+  color: var(--danger);
+  margin: 0;
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .ai-panel__head {
+    flex-direction: column;
+  }
 }
 
 @media (max-width: 640px) {

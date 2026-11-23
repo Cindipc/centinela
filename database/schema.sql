@@ -1,15 +1,23 @@
 -- =========================================================
--- CENTINELA — Esquema de base de datos (Supabase/PostgreSQL)
--- Versión corregida: RLS sin recursión (helper SECURITY DEFINER),
--- trigger de perfiles y políticas completas para la web.
--- Si la BD ya existe, ejecuta únicamente migrations/001.
+-- CENTINELA - Esquema base (Supabase/PostgreSQL)
+--
+-- INSTALACIÓN NUEVA (ejecutar en este orden):
+--   1. database/schema.sql
+--   2. database/migrations/001_fix_rls_recursion.sql
+--   3. database/migrations/002_roles_rbac.sql
+--   4. database/migrations/003_multi_tenant_licenses_audit.sql
+--
+-- El estado canónico y completo vive en las migraciones. Este archivo
+-- contiene el esquema base v1; la migración 003 agrega organizaciones,
+-- licencias, auditoría, aislamiento multiuniversidad y RLS por tenant.
+-- Si la BD ya existe, NO vuelvas a ejecutar este archivo.
 -- =========================================================
 
 -- 1. Extensiones necesarias
 create extension if not exists postgis;
 
 -- 2. Tipos (enums)
-create type user_role as enum ('usuario', 'seguridad', 'ti', 'admin');
+create type user_role as enum ('usuario', 'seguridad', 'ti', 'admin', 'superadmin');
 create type incident_type as enum ('seguridad', 'equipo');
 create type incident_priority as enum ('low', 'medium', 'high', 'critical');
 create type incident_status as enum ('pendiente', 'en_proceso', 'resuelto', 'falsa_alarma');

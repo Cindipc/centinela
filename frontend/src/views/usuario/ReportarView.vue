@@ -1,11 +1,23 @@
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useIncidentsStore } from '@/stores/incidents'
-import type { IncidentInput, IncidentPriority, IncidentType } from '@backend/types'
+import { useIncidentAi } from '@/composables/useIncidentAi'
+import { analyzeIncidentImage } from '@backend/api/aiApi'
+import { compressImageFile } from '@/utils/imageFile'
+import type { ImageAnalysis, IncidentInput, IncidentPriority, IncidentType } from '@backend/types'
 
 const router = useRouter()
 const store = useIncidentsStore()
+const {
+  configured: aiConfigured,
+  analyzing: aiAnalyzing,
+  error: aiError,
+  suggestion: aiSuggestion,
+  duplicates: aiDuplicates,
+  analyze: analyzeWithAi,
+  reset: resetAi,
+} = useIncidentAi()
 
 const CATEGORIES: Record<IncidentType, string[]> = {
   seguridad: [
@@ -47,10 +59,66 @@ const photoPreview = ref<string | null>(null)
 const sending = ref(false)
 const error = ref<string | null>(null)
 const sent = ref(false)
+const analyzingPhoto = ref(false)
+const photoError = ref<string | null>(null)
+const photoAnalysis = ref<ImageAnalysis | null>(null)
+
+const selectedZoneId = computed(
+  () => store.zones.find((zone) => zone.name === form.zone)?.id ?? null
+)
 
 onMounted(() => {
   store.fetchReferences()
 })
+
+function runAi() {
+  resetAi()
+  void analyzeWithAi({
+    type: form.type,
+    title: form.title,
+    description: form.description,
+    zone: form.zone,
+    zoneId: selectedZoneId.value,
+  })
+}
+
+function applySuggestion() {
+  if (!aiSuggestion.value) return
+  form.category = aiSuggestion.value.category
+  form.priority = aiSuggestion.value.priority
+}
+
+async function analyzePhoto() {
+  if (!photo.value) return
+  analyzingPhoto.value = true
+  photoError.value = null
+  photoAnalysis.value = null
+  try {
+    const image = await compressImageFile(photo.value)
+    const result = await analyzeIncidentImage({
+      type: form.type,
+      imageBase64: image.base64,
+      mediaType: image.mediaType,
+      description: form.description,
+    })
+    photoAnalysis.value = result
+    if (result.source === 'unavailable') {
+      photoError.value =
+        'El modelo de visión no está configurado. Puedes continuar sin el análisis de la foto.'
+    }
+  } catch (e) {
+    photoError.value =
+      e instanceof Error ? e.message : 'No se pudo analizar la imagen.'
+  } finally {
+    analyzingPhoto.value = false
+  }
+}
+
+function applyPhotoSuggestion() {
+  if (!photoAnalysis.value) return
+  form.category = photoAnalysis.value.category
+  form.priority = photoAnalysis.value.priority
+}
 
 function onTypeChange() {
   form.category = ''
@@ -60,6 +128,8 @@ function onPhoto(event: Event) {
   const file = (event.target as HTMLInputElement).files?.[0] ?? null
   photo.value = file
   photoPreview.value = file ? URL.createObjectURL(file) : null
+  photoAnalysis.value = null
+  photoError.value = null
 }
 
 /** La ubicación del reporte es opcional: no bloquea el envío si el permiso se deniega. */
@@ -148,6 +218,12 @@ async function submit() {
             <option v-for="option in CATEGORIES[form.type]" :key="option" :value="option">
               {{ option }}
             </option>
+            <option
+              v-if="form.category && !CATEGORIES[form.type].includes(form.category)"
+              :value="form.category"
+            >
+              {{ form.category }} (sugerida por IA)
+            </option>
           </select>
         </label>
 
@@ -173,6 +249,82 @@ async function submit() {
       </label>
 
       <img v-if="photoPreview" :src="photoPreview" alt="Vista previa" class="report__preview" />
+
+      <section v-if="aiConfigured && photo" class="ai-panel">
+        <div class="ai-panel__head">
+          <div>
+            <strong>Análisis de la foto (opcional)</strong>
+            <p class="text-muted">Describe solo lo visible. No identifica personas.</p>
+          </div>
+          <button
+            type="button"
+            class="btn btn--ghost btn--small"
+            :disabled="analyzingPhoto"
+            @click="analyzePhoto"
+          >
+            {{ analyzingPhoto ? 'Analizando...' : 'Analizar foto' }}
+          </button>
+        </div>
+        <p v-if="photoError" class="ai-panel__error">{{ photoError }}</p>
+        <div v-if="photoAnalysis" class="ai-panel__result">
+          <p>
+            <strong>{{ photoAnalysis.category }}</strong> · prioridad
+            {{ photoAnalysis.priority }} · {{ Math.round(photoAnalysis.confidence * 100) }}%
+            confianza
+          </p>
+          <ul>
+            <li v-for="item in photoAnalysis.observations" :key="item">{{ item }}</li>
+          </ul>
+          <ul v-if="photoAnalysis.safetyConcerns.length" class="ai-panel__risk">
+            <li v-for="item in photoAnalysis.safetyConcerns" :key="item">{{ item }}</li>
+          </ul>
+          <button
+            v-if="photoAnalysis.source === 'ollama'"
+            type="button"
+            class="btn btn--ghost btn--small"
+            @click="applyPhotoSuggestion"
+          >
+            Usar sugerencia de la foto
+          </button>
+        </div>
+      </section>
+
+      <section v-if="aiConfigured" class="ai-panel">
+        <div class="ai-panel__head">
+          <div>
+            <strong>Asistente de IA</strong>
+            <p class="text-muted">Sugiere categoría y prioridad, y busca posibles duplicados.</p>
+          </div>
+          <button type="button" class="btn btn--ghost btn--small" :disabled="aiAnalyzing" @click="runAi">
+            {{ aiAnalyzing ? 'Analizando...' : 'Analizar reporte' }}
+          </button>
+        </div>
+        <p v-if="aiError" class="ai-panel__error">{{ aiError }}</p>
+
+        <div v-if="aiSuggestion" class="ai-panel__result">
+          <p>
+            <strong>{{ aiSuggestion.category }}</strong> · prioridad {{ aiSuggestion.priority }}
+            · {{ Math.round(aiSuggestion.confidence * 100) }}% confianza
+          </p>
+          <p class="text-muted">{{ aiSuggestion.summary }}</p>
+          <ul>
+            <li v-for="action in aiSuggestion.recommendedActions" :key="action">{{ action }}</li>
+          </ul>
+          <button type="button" class="btn btn--ghost btn--small" @click="applySuggestion">
+            Usar categoría y prioridad sugeridas
+          </button>
+        </div>
+
+        <div v-if="aiDuplicates?.likelyDuplicate" class="ai-panel__duplicates">
+          <strong>Posibles duplicados</strong>
+          <ul>
+            <li v-for="candidate in aiDuplicates.candidates" :key="candidate.incidentId">
+              {{ candidate.code }} · {{ candidate.title }} ({{ Math.round(candidate.similarity * 100) }}%)
+            </li>
+          </ul>
+          <p class="text-muted">Revisa antes de registrar; puedes continuar si es distinto.</p>
+        </div>
+      </section>
 
       <footer class="report__foot">
         <button type="button" class="btn btn--ghost" @click="router.back()">Cancelar</button>
@@ -289,6 +441,63 @@ async function submit() {
   border: 1px solid rgba(85, 224, 176, 0.4);
   color: var(--success);
   font-size: 14px;
+}
+
+.ai-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--bg-raised);
+}
+
+.ai-panel__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ai-panel__head p {
+  margin: 2px 0 0;
+  font-size: 12px;
+}
+
+.ai-panel__result,
+.ai-panel__duplicates {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.ai-panel__result p,
+.ai-panel__duplicates p {
+  margin: 0;
+}
+
+.ai-panel__result ul,
+.ai-panel__duplicates ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.ai-panel__risk {
+  color: var(--danger);
+}
+
+.ai-panel__error {
+  color: var(--danger);
+  margin: 0;
+  font-size: 13px;
+}
+
+@media (max-width: 640px) {
+  .ai-panel__head {
+    flex-direction: column;
+  }
 }
 
 .report__error {
